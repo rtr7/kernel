@@ -87,6 +87,9 @@ CONFIG_IKCONFIG_PROC=y
 
 # For kexec
 CONFIG_KEXEC_FILE=y
+
+# For apu2c4 watchdog
+CONFIG_SP5100_TCO=y
 `
 
 func downloadKernel() error {
