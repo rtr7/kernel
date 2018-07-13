@@ -30,9 +30,9 @@ import (
 const dockerFileContents = `
 FROM debian:stretch
 
-RUN apt-get update && apt-get install -y crossbuild-essential-arm64 bc libssl-dev bison flex
+RUN apt-get update && apt-get install -y crossbuild-essential-arm64 bc libssl-dev bison flex libelf-dev ncurses-dev
 
-COPY gokr-build-kernel /usr/bin/gokr-build-kernel
+COPY rtr7-build-kernel /usr/bin/rtr7-build-kernel
 {{- range $idx, $path := .Patches }}
 COPY {{ $path }} /usr/src/{{ $path }}
 {{- end }}
@@ -42,7 +42,7 @@ RUN echo 'builduser:x:{{ .Uid }}:{{ .Gid }}:nobody:/:/bin/sh' >> /etc/passwd && 
 
 USER builduser
 WORKDIR /usr/src
-ENTRYPOINT /usr/bin/gokr-build-kernel
+ENTRYPOINT /usr/bin/rtr7-build-kernel
 `
 
 var dockerFileTmpl = template.Must(template.New("dockerfile").
@@ -53,31 +53,7 @@ var dockerFileTmpl = template.Must(template.New("dockerfile").
 	}).
 	Parse(dockerFileContents))
 
-var patchFiles = []string{
-	"0001-Revert-add-index-to-the-ethernet-alias.patch",
-	// lan78xx patches, cherry-picked from
-	// https://git.kernel.org/pub/scm/linux/kernel/git/davem/net-next.git
-	"0001-lan78xx.patch",
-	"0003-lan78xx.patch",
-	"0004-lan78xx.patch",
-	"0005-lan78xx.patch",
-	"0006-lan78xx.patch",
-	"0007-lan78xx.patch",
-	"0008-lan78xx.patch",
-	"0009-lan78xx.patch",
-	"0010-lan78xx.patch",
-	// device tree patches, cherry-picked from
-	// https://git.kernel.org/pub/scm/linux/kernel/git/arm/arm-soc.git
-	"0000-dt-rpi3b+.patch",
-	"0001-dt-rpi3b+.patch",
-	"0002-dt-rpi3b+.patch",
-	"0003-dt-rpi3b+.patch",
-	"0004-dt-rpi3b+.patch",
-	"0005-dt-rpi3b+.patch",
-	// serial
-	"0101-expose-UART0-ttyAMA0-on-GPIO-14-15-disable-UART1-tty.patch",
-	"0102-expose-UART0-ttyAMA0-on-GPIO-14-15-disable-UART1-tty.patch",
-}
+var patchFiles = []string{}
 
 func copyFile(dest, src string) error {
 	out, err := os.Create(dest)
@@ -121,7 +97,7 @@ func find(filename string) (string, error) {
 		return filename, nil
 	}
 
-	path := filepath.Join(gopath, "src", "github.com", "gokrazy", "kernel", filename)
+	path := filepath.Join(gopath, "src", "github.com", "rtr7", "kernel", filename)
 	if _, err := os.Stat(path); err == nil {
 		return path, nil
 	}
@@ -130,14 +106,14 @@ func find(filename string) (string, error) {
 }
 
 func main() {
-	cmd := exec.Command("go", "install", "github.com/gokrazy/kernel/cmd/gokr-build-kernel")
+	cmd := exec.Command("go", "install", "github.com/rtr7/kernel/cmd/rtr7-build-kernel")
 	cmd.Env = append(os.Environ(), "GOOS=linux")
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		log.Fatalf("%v: %v", cmd.Args, err)
 	}
 
-	buildPath, err := exec.LookPath("gokr-build-kernel")
+	buildPath, err := exec.LookPath("rtr7-build-kernel")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -152,14 +128,6 @@ func main() {
 	}
 
 	kernelPath, err := find("vmlinuz")
-	if err != nil {
-		log.Fatal(err)
-	}
-	dtbPath, err := find("bcm2710-rpi-3-b.dtb")
-	if err != nil {
-		log.Fatal(err)
-	}
-	dtbPlusPath, err := find("bcm2710-rpi-3-b-plus.dtb")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -210,7 +178,7 @@ func main() {
 	dockerBuild := exec.Command("docker",
 		"build",
 		"--rm=true",
-		"--tag=gokr-rebuild-kernel",
+		"--tag=rtr7-rebuild-kernel",
 		".")
 	dockerBuild.Dir = tmp
 	dockerBuild.Stdout = os.Stdout
@@ -225,7 +193,7 @@ func main() {
 		"run",
 		"--rm",
 		"--volume", tmp+":/tmp/buildresult",
-		"gokr-rebuild-kernel")
+		"rtr7-rebuild-kernel")
 	dockerRun.Dir = tmp
 	dockerRun.Stdout = os.Stdout
 	dockerRun.Stderr = os.Stderr
@@ -234,14 +202,6 @@ func main() {
 	}
 
 	if err := copyFile(kernelPath, filepath.Join(tmp, "vmlinuz")); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := copyFile(dtbPath, filepath.Join(tmp, "bcm2710-rpi-3-b.dtb")); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := copyFile(dtbPlusPath, filepath.Join(tmp, "bcm2710-rpi-3-b-plus.dtb")); err != nil {
 		log.Fatal(err)
 	}
 }
