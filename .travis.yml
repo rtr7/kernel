@@ -1,0 +1,32 @@
+# Use the (faster) container-based infrastructure, see also
+# http://docs.travis-ci.com/user/workers/container-based-infrastructure/
+sudo: false
+services:
+  - docker
+
+language: go
+go:
+  - "1.10"
+
+env:
+  global:
+  # GITHUB_USER
+  - secure: "grjMfi9BAE+/CSkv1Xtfmux9MKOWeIp7l0zeayk1QBnPswCzOBK7T6rvQ2A4XVfJrVA3cid45kiyjAdtEjgB0mbMOUXS0XtPENb6FopSOG+hDcd69RrSHBsUGbHzipl/iL5+BV4pjzy2Jhbb2UYhVib+PWMUBV8r10wZ1pCz9vtYJAn4nmdFJnfJ0zbdoUN4mtg7LK7j5GVBZxYOrwzD0VKkQU8GOHrAPYY0CJrbXvPM/+DJsO5h6oGB5HA0ixH5jmhQtw7GF/769o+NLt3ktKrPsSVennNtBZqZijNJ5q9acBQtt+VazVWP2a2rD0lXco1Gi4UNTxeRNst3X1YIqi6+ELTAcbCv7XrpjkHe5orp7QkIEtqnM274X4UxGBEsHYn1IYbRylvnsd4iDFxPcyoeVWJjFMRNk4CaPx0mpd3cJEHRNFjHEOnoKddAQ1JkY9iO3w+xZOosTLiun0lclamB+Krx6RnQOEZVgnZpOVgFX6JHyu5/JgG69els2m6Jd9TGPqmUvV+ilvjkzR7FQD1fu+Nk7ghid6/NeDaP6PtVj8lYtoSBaY/2dMTjLPuIejXW6kUzwP2LQy4zQedOjMnn1jevg9+NjFmkXPfNTN+CmHUbh+E1SwF3ZtLbbb4ijdWR6XMh3FCg6fykJFCh1gwu/2b250qUkHtsO1du/7k="
+  # GITHUB_AUTH_TOKEN
+  - secure: "cNl8vB/KirU1hhtd+5z3sEGYv7KaZfZrxFv09aDpcypB4OxbdX2ncVJlEHNlS5yUBy0mlHGgGpZuWLz+/a576kF2sOst1xbxRB+MBt1VWfVXappKtb307rOsGl2zHHcReOAuVDfua2v+Jj5pVrLr5exFZXrJNd9CRAezj54qCLQrYJJ9isolWdk49B1MG3bYlm1FhulI0DSXO/FfuZPTLHOJCduT/e2NH4Rnxr0uoBtehZYoKZ0ryc/dm0iZzvORxlWxVVcCBVqqcxLrPOGifibsqPeNQNS8rMFrlvgDmIPWmYmWiOBanYvsgmlhYLUu2v7nv3xmEnUYaUmnJ9QtrnjFykTmeIQgZ7FPuMyGBouOIwl8qqYcY0hqmllXO81QkxSOLfOTlFgI/55rqxCXRfYjekANlrgvb9D083f6wlrbLCgLIApnhX31lGEE+u89ZqukSzBMvYwx3bS4Z/ktqfkZmr5EgRIMDOs/2/HUbNZF9Uv/QOqCAPNSHUAx4aBGQjfZiKA1+NXru9PHe3rB9/qR+hnfcpzU5PBrsCOXgChMzj5uhPR30Z79i4Nf3GrNl23OtfWAGToR+P0I5HS7gworNTrf3zgoFyiupPvLsiZKRfe6IumiKKw4lPUHi5TcA+rF5yKfz8EjKb11RAjdydL9nxcg91SFp/WOAexNlCI="
+  # BOOTERY_URL
+  - secure: "Bi/axny4Y7E9RP0L/x6WFwM8sLuPjfboUnxEvYpdyubgPSKan1rFgark0zlBBS/lBaSGZiqr4J+H8Ec6WChxb2wNPtSrx64iI5V1nfhRSgHYCRd9m1YR56PhgaPjPw54QXqbNgkZD+yp50b2bFAoLBcqd8VXDlwC381sHix36Z7vn1UD4TX5YOx4uc4HGXjDEYadXLQuwFzm1/vgSPw9uE+Jp7jEbVAGuXZdvCDqvctMvO60sL5ZKOB5NG7IpDApkwFgi7PvLT96vi4BR8lqgzy3Jz42UdFQqYVccOGhfkXDVVOO4VU58AtTXodPX0fwUKiiiCDyM3mgRrDFgFf4X97tbX0llSwUShg0aymM9wHRZtoqsIUjqM5zIXIt1TMKWkXw6jePBQjTOhsWa3ztlySuFys9to69GKCy5EOvaOToYWNLfXJ5752Y7vslAKsXUtA86SGf3FHwSje+x8oDcgAMuluBi7f8oHO4/rUjWuy33wkMhwPtUUtKSXly5FE/YtHl/QoPde0OVjBFrTazEU3pElKWa0R+2QhDlF+hJLAcz2IDrCYnQHiZZOmunfafg6OxPENa86U3ygd99975EWVJUfjwOEwHLKLxCqlBZS8cT9utSPAprTjTVnqRb39RwgCSkCMeeLuK9kQaTFllvgYVVsRhOat1zleU6ArFoR8="
+
+script:
+  # Check whether files are syntactically correct.
+  - "gofmt -l $(find . -name '*.go' | tr '\\n' ' ') >/dev/null"
+  # Check whether files were not gofmt'ed.
+  - gosrc=$(find . -name '*.go' | tr '\\n' ' '); [ $(gofmt -l $gosrc 2>&- | wc -l) -eq 0 ] || (echo 'gofmt was not run on these files:'; gofmt -l $gosrc 2>&-; false)
+  - '[ "$TRAVIS_SECURE_ENV_VARS" != "true" ] || go get -u github.com/gokrazy/autoupdate/cmd/... github.com/gokrazy/tools/cmd/gokr-packer'
+  - '[ "$TRAVIS_SECURE_ENV_VARS" != "true" ] || GOARCH=amd64 gokr-boot -require_label=please-boot -set_label=please-merge -bootery_url=$BOOTERY_URL -kernel_package=github.com/rtr7/kernel -firmware_package=github.com/rtr7/kernel || travis_terminate $?'
+  - '[ "$TRAVIS_SECURE_ENV_VARS" != "true" ] || { gokr-merge -require_label=please-merge; ret=$?; if [ $ret -eq 0 ]; then travis_terminate 0; elif [ $ret -eq 1 ]; then travis_terminate 1; else true; fi; }'
+  # rebuild kernel
+  - go install ./cmd/rtr7-rebuild-kernel
+  - rtr7-rebuild-kernel
+  # update pull request
+  - '[ "$TRAVIS_SECURE_ENV_VARS" != "true" ] || (go get -u github.com/gokrazy/autoupdate/cmd/gokr-amend && gokr-amend -set_label=please-boot vmlinuz)'
