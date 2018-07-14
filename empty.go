@@ -12,5 +12,5 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package main is a placeholder so that the packer can find the kernel in this directory.
-package main
+// Package kernel is a placeholder so that the packer can find the kernel in this directory.
+package kernel
