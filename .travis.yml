@@ -8,6 +8,12 @@ language: go
 go:
   - "1.10"
 
+addons:
+  apt:
+    packages:
+    # for qemubootery
+    - qemu-system-x86
+
 env:
   global:
   # GITHUB_USER
@@ -22,8 +28,9 @@ script:
   - "gofmt -l $(find . -name '*.go' | tr '\\n' ' ') >/dev/null"
   # Check whether files were not gofmt'ed.
   - gosrc=$(find . -name '*.go' | tr '\\n' ' '); [ $(gofmt -l $gosrc 2>&- | wc -l) -eq 0 ] || (echo 'gofmt was not run on these files:'; gofmt -l $gosrc 2>&-; false)
-  - '[ "$TRAVIS_SECURE_ENV_VARS" != "true" ] || go get -u github.com/gokrazy/autoupdate/cmd/... github.com/gokrazy/tools/cmd/gokr-packer'
+  - '[ "$TRAVIS_SECURE_ENV_VARS" != "true" ] || go get -u github.com/gokrazy/autoupdate/cmd/... github.com/gokrazy/tools/cmd/gokr-packer github.com/gokrazy/bakery/cmd/qemubootery'
   - '[ "$TRAVIS_SECURE_ENV_VARS" != "true" ] || GOARCH=amd64 gokr-boot -require_label=please-boot -set_label=please-merge -bootery_url=$BOOTERY_URL -kernel_package=github.com/rtr7/kernel -firmware_package=github.com/rtr7/kernel -serial_console=ttyS0,115200 || travis_terminate $?'
+  - '[ "$TRAVIS_SECURE_ENV_VARS" != "true" ] || (qemubootery & GOARCH=amd64 gokr-boot -require_label=please-merge -set_label=please-merge -bootery_url=http://localhost:8037/testboot -kernel_package=github.com/rtr7/kernel -firmware_package=github.com/rtr7/kernel -serial_console=ttyS0,115200) || travis_terminate $?'
   - '[ "$TRAVIS_SECURE_ENV_VARS" != "true" ] || { gokr-merge -require_label=please-merge; ret=$?; if [ $ret -eq 0 ]; then travis_terminate 0; elif [ $ret -eq 1 ]; then travis_terminate 1; else true; fi; }'
   # rebuild kernel
   - go install ./cmd/rtr7-rebuild-kernel
