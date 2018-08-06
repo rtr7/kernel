@@ -106,17 +106,24 @@ func find(filename string) (string, error) {
 }
 
 func main() {
-	cmd := exec.Command("go", "install", "github.com/rtr7/kernel/cmd/rtr7-build-kernel")
+	// We explicitly use /tmp, because Docker only allows volume mounts under
+	// certain paths on certain platforms, see
+	// e.g. https://docs.docker.com/docker-for-mac/osxfs/#namespaces for macOS.
+	tmp, err := ioutil.TempDir("/tmp", "gokr-rebuild-kernel")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	cmd := exec.Command("go", "build", "github.com/rtr7/kernel/cmd/rtr7-build-kernel")
+	cmd.Dir = tmp
 	cmd.Env = append(os.Environ(), "GOOS=linux")
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		log.Fatalf("%v: %v", cmd.Args, err)
 	}
 
-	buildPath, err := exec.LookPath("rtr7-build-kernel")
-	if err != nil {
-		log.Fatal(err)
-	}
+	buildPath := filepath.Join(tmp, "rtr7-build-kernel")
 
 	var patchPaths []string
 	for _, filename := range patchFiles {
@@ -132,15 +139,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	tmp, err := ioutil.TempDir("", "gokr-rebuild-kernel")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
-
 	// Copy all files into the temporary directory so that docker
 	// includes them in the build context.
-	for _, path := range append([]string{buildPath}, patchPaths...) {
+	for _, path := range patchPaths {
 		if err := copyFile(filepath.Join(tmp, filepath.Base(path)), path); err != nil {
 			log.Fatal(err)
 		}
@@ -184,7 +185,7 @@ func main() {
 	dockerBuild.Stdout = os.Stdout
 	dockerBuild.Stderr = os.Stderr
 	if err := dockerBuild.Run(); err != nil {
-		log.Fatalf("docker build: %v", err)
+		log.Fatalf("docker build: %v (cmd: %v)", err, dockerBuild.Args)
 	}
 
 	log.Printf("compiling kernel")
@@ -198,7 +199,7 @@ func main() {
 	dockerRun.Stdout = os.Stdout
 	dockerRun.Stderr = os.Stderr
 	if err := dockerRun.Run(); err != nil {
-		log.Fatalf("docker build: %v", err)
+		log.Fatalf("docker run: %v (cmd: %v)", err, dockerRun.Args)
 	}
 
 	if err := copyFile(kernelPath, filepath.Join(tmp, "vmlinuz")); err != nil {
