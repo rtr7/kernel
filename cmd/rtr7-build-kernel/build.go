@@ -91,6 +91,10 @@ CONFIG_KEXEC_FILE=y
 
 # For apu2c4 watchdog
 CONFIG_SP5100_TCO=y
+
+# For WireGuard
+CONFIG_NET_UDP_TUNNEL=y
+CONFIG_WIREGUARD=y
 `
 
 func downloadKernel() error {
