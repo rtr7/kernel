@@ -95,6 +95,12 @@ CONFIG_SP5100_TCO=y
 # For WireGuard
 CONFIG_NET_UDP_TUNNEL=y
 CONFIG_WIREGUARD=y
+
+# For traffic shaping using tc:
+CONFIG_NET_SCH_TBF=y
+
+# For measuring CPU temperature:
+CONFIG_SENSORS_K10TEMP=y
 `
 
 func downloadKernel() error {
