@@ -101,6 +101,9 @@ CONFIG_NET_SCH_TBF=y
 
 # For measuring CPU temperature:
 CONFIG_SENSORS_K10TEMP=y
+
+# For iproute2’s ss(8):
+CONFIG_INET_DIAG=y
 `
 
 func downloadKernel() error {
