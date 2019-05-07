@@ -1,5 +1,5 @@
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/allowedips.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/allowedips.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,377 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
@@ -9,7 +9,7 @@
 +#include "allowedips.h"
 +#include "peer.h"
 +
-+static __always_inline void swap_endian(u8 *dst, const u8 *src, u8 bits)
++static void swap_endian(u8 *dst, const u8 *src, u8 bits)
 +{
 +	if (bits == 32) {
 +		*(u32 *)dst = be32_to_cpu(*(const __be32 *)src);
@@ -111,11 +111,11 @@
 +			if (rcu_dereference_protected(node->peer,
 +				lockdep_is_held(lock)) == peer) {
 +				RCU_INIT_POINTER(node->peer, NULL);
-+				list_del(&node->peer_list);
++				list_del_init(&node->peer_list);
 +				if (!node->bit[0] || !node->bit[1]) {
 +					rcu_assign_pointer(*nptr, DEREF(
 +					       &node->bit[!REF(node->bit[0])]));
-+					call_rcu_bh(&node->rcu, node_free_rcu);
++					call_rcu(&node->rcu, node_free_rcu);
 +					node = DEREF(nptr);
 +				}
 +			}
@@ -133,8 +133,8 @@
 +	return a ? fls64(a) + 64U : fls64(b);
 +}
 +
-+static __always_inline u8 common_bits(const struct allowedips_node *node,
-+				      const u8 *key, u8 bits)
++static u8 common_bits(const struct allowedips_node *node, const u8 *key,
++		      u8 bits)
 +{
 +	if (bits == 32)
 +		return 32U - fls(*(const u32 *)node->bits ^ *(const u32 *)key);
@@ -145,8 +145,8 @@
 +	return 0;
 +}
 +
-+static __always_inline bool prefix_matches(const struct allowedips_node *node,
-+					   const u8 *key, u8 bits)
++static bool prefix_matches(const struct allowedips_node *node, const u8 *key,
++			   u8 bits)
 +{
 +	/* This could be much faster if it actually just compared the common
 +	 * bits properly, by precomputing a mask bswap(~0 << (32 - cidr)), and
@@ -157,8 +157,8 @@
 +	return common_bits(node, key, bits) >= node->cidr;
 +}
 +
-+static __always_inline struct allowedips_node *
-+find_node(struct allowedips_node *trie, u8 bits, const u8 *key)
++static struct allowedips_node *find_node(struct allowedips_node *trie, u8 bits,
++					 const u8 *key)
 +{
 +	struct allowedips_node *node = trie, *found = NULL;
 +
@@ -173,8 +173,8 @@
 +}
 +
 +/* Returns a strong reference to a peer */
-+static __always_inline struct wg_peer *
-+lookup(struct allowedips_node __rcu *root, u8 bits, const void *be_ip)
++static struct wg_peer *lookup(struct allowedips_node __rcu *root, u8 bits,
++			      const void *be_ip)
 +{
 +	/* Aligned so it can be passed to fls/fls64 */
 +	u8 ip[16] __aligned(__alignof(u64));
@@ -303,12 +303,12 @@
 +	RCU_INIT_POINTER(table->root6, NULL);
 +	if (rcu_access_pointer(old4)) {
 +		root_remove_peer_lists(old4);
-+		call_rcu_bh(&rcu_dereference_protected(old4,
++		call_rcu(&rcu_dereference_protected(old4,
 +				lockdep_is_held(lock))->rcu, root_free_rcu);
 +	}
 +	if (rcu_access_pointer(old6)) {
 +		root_remove_peer_lists(old6);
-+		call_rcu_bh(&rcu_dereference_protected(old6,
++		call_rcu(&rcu_dereference_protected(old6,
 +				lockdep_is_held(lock))->rcu, root_free_rcu);
 +	}
 +}
@@ -378,8 +378,8 @@
 +}
 +
 +#include "selftest/allowedips.c"
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/dst_cache/dst_cache.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/dst_cache/dst_cache.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,175 @@
 +/*
 + * net/core/dst_cache.c - dst entry cache
@@ -556,8 +556,8 @@
 +
 +	free_percpu(dst_cache->cache);
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/memneq/memneq.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/memneq/memneq.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,170 @@
 +/*
 + * Constant-time equality testing of memory regions.
@@ -729,8 +729,8 @@
 +}
 +
 +#endif /* __HAVE_ARCH_CRYPTO_MEMNEQ */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/siphash/siphash.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/siphash/siphash.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,539 @@
 +/* Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 + *
@@ -1271,8 +1271,8 @@
 +	HPOSTAMBLE
 +}
 +#endif
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/udp_tunnel/udp_tunnel.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/udp_tunnel/udp_tunnel.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,385 @@
 +#include <linux/module.h>
 +#include <linux/errno.h>
@@ -1659,8 +1659,8 @@
 +	return 0;
 +}
 +#endif
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/cookie.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/cookie.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,236 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
@@ -1702,7 +1702,7 @@
 +	blake2s_init(&blake, NOISE_SYMMETRIC_KEY_LEN);
 +	blake2s_update(&blake, label, COOKIE_KEY_LABEL_LEN);
 +	blake2s_update(&blake, pubkey, NOISE_PUBLIC_KEY_LEN);
-+	blake2s_final(&blake, key, NOISE_SYMMETRIC_KEY_LEN);
++	blake2s_final(&blake, key);
 +}
 +
 +/* Must hold peer->handshake.static_identity->lock */
@@ -1775,7 +1775,7 @@
 +		blake2s_update(&state, (u8 *)&ipv6_hdr(skb)->saddr,
 +			       sizeof(struct in6_addr));
 +	blake2s_update(&state, (u8 *)&udp_hdr(skb)->source, sizeof(__be16));
-+	blake2s_final(&state, cookie, COOKIE_LEN);
++	blake2s_final(&state, cookie);
 +
 +	up_read(&checker->secret_lock);
 +}
@@ -1898,12 +1898,11 @@
 +out:
 +	wg_peer_put(peer);
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/blake2s/blake2s.c	2019-02-27 22:08:31.000000000 +0100
-@@ -0,0 +1,305 @@
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/blake2s/blake2s.c	2019-04-06 13:11:56.000000000 +0200
+@@ -0,0 +1,276 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
-+ * Copyright (C) 2012 Samuel Neves <sneves@dei.uc.pt>. All Rights Reserved.
 + * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 + *
 + * This is an implementation of the BLAKE2s hash and PRF functions.
@@ -1922,23 +1921,6 @@
 +#include <linux/init.h>
 +#include <linux/bug.h>
 +#include <asm/unaligned.h>
-+
-+typedef union {
-+	struct {
-+		u8 digest_length;
-+		u8 key_length;
-+		u8 fanout;
-+		u8 depth;
-+		u32 leaf_length;
-+		u32 node_offset;
-+		u16 xof_length;
-+		u8 node_depth;
-+		u8 inner_length;
-+		u8 salt[8];
-+		u8 personal[8];
-+	};
-+	__le32 words[8];
-+} __packed blake2s_param;
 +
 +static const u32 blake2s_iv[8] = {
 +	0x6A09E667UL, 0xBB67AE85UL, 0x3C6EF372UL, 0xA54FF53AUL,
@@ -1960,8 +1942,6 @@
 +
 +static inline void blake2s_set_lastblock(struct blake2s_state *state)
 +{
-+	if (state->last_node)
-+		state->f[1] = -1;
 +	state->f[0] = -1;
 +}
 +
@@ -1973,40 +1953,33 @@
 +}
 +
 +static inline void blake2s_init_param(struct blake2s_state *state,
-+				      const blake2s_param *param)
++				      const u32 param)
 +{
 +	int i;
 +
 +	memset(state, 0, sizeof(*state));
 +	for (i = 0; i < 8; ++i)
-+		state->h[i] = blake2s_iv[i] ^ le32_to_cpu(param->words[i]);
++		state->h[i] = blake2s_iv[i];
++	state->h[0] ^= param;
 +}
 +
 +void blake2s_init(struct blake2s_state *state, const size_t outlen)
 +{
-+	blake2s_param param __aligned(__alignof__(u32)) = {
-+		.digest_length = outlen,
-+		.fanout = 1,
-+		.depth = 1
-+	};
-+
 +	WARN_ON(IS_ENABLED(DEBUG) && (!outlen || outlen > BLAKE2S_HASH_SIZE));
-+	blake2s_init_param(state, &param);
++	blake2s_init_param(state, 0x01010000 | outlen);
++	state->outlen = outlen;
 +}
 +EXPORT_SYMBOL(blake2s_init);
 +
 +void blake2s_init_key(struct blake2s_state *state, const size_t outlen,
 +		      const void *key, const size_t keylen)
 +{
-+	blake2s_param param = { .digest_length = outlen,
-+				.key_length = keylen,
-+				.fanout = 1,
-+				.depth = 1 };
 +	u8 block[BLAKE2S_BLOCK_SIZE] = { 0 };
 +
 +	WARN_ON(IS_ENABLED(DEBUG) && (!outlen || outlen > BLAKE2S_HASH_SIZE ||
 +		!key || !keylen || keylen > BLAKE2S_KEY_SIZE));
-+	blake2s_init_param(state, &param);
++	blake2s_init_param(state, 0x01010000 | keylen << 8 | outlen);
++	state->outlen = outlen;
 +	memcpy(block, key, keylen);
 +	blake2s_update(state, block, BLAKE2S_BLOCK_SIZE);
 +	memzero_explicit(block, BLAKE2S_BLOCK_SIZE);
@@ -2113,8 +2086,7 @@
 +		inlen -= fill;
 +	}
 +	if (inlen > BLAKE2S_BLOCK_SIZE) {
-+		const size_t nblocks =
-+			(inlen + BLAKE2S_BLOCK_SIZE - 1) / BLAKE2S_BLOCK_SIZE;
++		const size_t nblocks = DIV_ROUND_UP(inlen, BLAKE2S_BLOCK_SIZE);
 +		/* Hash one less (full) block than strictly possible */
 +		blake2s_compress(state, in, nblocks - 1, BLAKE2S_BLOCK_SIZE);
 +		in += BLAKE2S_BLOCK_SIZE * (nblocks - 1);
@@ -2125,16 +2097,15 @@
 +}
 +EXPORT_SYMBOL(blake2s_update);
 +
-+void blake2s_final(struct blake2s_state *state, u8 *out, const size_t outlen)
++void blake2s_final(struct blake2s_state *state, u8 *out)
 +{
-+	WARN_ON(IS_ENABLED(DEBUG) &&
-+		(!out || !outlen || outlen > BLAKE2S_HASH_SIZE));
++	WARN_ON(IS_ENABLED(DEBUG) && !out);
 +	blake2s_set_lastblock(state);
 +	memset(state->buf + state->buflen, 0,
 +	       BLAKE2S_BLOCK_SIZE - state->buflen); /* Padding */
 +	blake2s_compress(state, state->buf, 1, state->buflen);
 +	cpu_to_le32_array(state->h, ARRAY_SIZE(state->h));
-+	memcpy(out, state->h, outlen);
++	memcpy(out, state->h, state->outlen);
 +	memzero_explicit(state, sizeof(*state));
 +}
 +EXPORT_SYMBOL(blake2s_final);
@@ -2150,7 +2121,7 @@
 +	if (keylen > BLAKE2S_BLOCK_SIZE) {
 +		blake2s_init(&state, BLAKE2S_HASH_SIZE);
 +		blake2s_update(&state, key, keylen);
-+		blake2s_final(&state, x_key, BLAKE2S_HASH_SIZE);
++		blake2s_final(&state, x_key);
 +	} else
 +		memcpy(x_key, key, keylen);
 +
@@ -2160,7 +2131,7 @@
 +	blake2s_init(&state, BLAKE2S_HASH_SIZE);
 +	blake2s_update(&state, x_key, BLAKE2S_BLOCK_SIZE);
 +	blake2s_update(&state, in, inlen);
-+	blake2s_final(&state, i_hash, BLAKE2S_HASH_SIZE);
++	blake2s_final(&state, i_hash);
 +
 +	for (i = 0; i < BLAKE2S_BLOCK_SIZE; ++i)
 +		x_key[i] ^= 0x5c ^ 0x36;
@@ -2168,7 +2139,7 @@
 +	blake2s_init(&state, BLAKE2S_HASH_SIZE);
 +	blake2s_update(&state, x_key, BLAKE2S_BLOCK_SIZE);
 +	blake2s_update(&state, i_hash, BLAKE2S_HASH_SIZE);
-+	blake2s_final(&state, i_hash, BLAKE2S_HASH_SIZE);
++	blake2s_final(&state, i_hash);
 +
 +	memcpy(out, i_hash, outlen);
 +	memzero_explicit(x_key, BLAKE2S_BLOCK_SIZE);
@@ -2206,8 +2177,8 @@
 +MODULE_DESCRIPTION("BLAKE2s hash function");
 +MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
 +#endif
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/blake2s/blake2s-x86_64-glue.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/blake2s/blake2s-x86_64-glue.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,73 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -2282,8 +2253,8 @@
 +	simd_put(&simd_context);
 +	return used_arch;
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/chacha20/chacha20-arm-glue.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/chacha20/chacha20-arm-glue.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,98 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -2383,8 +2354,8 @@
 +	}
 +	return false;
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/chacha20/chacha20.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/chacha20/chacha20.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,193 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -2579,8 +2550,8 @@
 +MODULE_DESCRIPTION("ChaCha20 stream cipher");
 +MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
 +#endif
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/chacha20/chacha20-mips-glue.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/chacha20/chacha20-mips-glue.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,27 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -2609,8 +2580,8 @@
 +{
 +	return false;
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/chacha20/chacha20-x86_64-glue.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/chacha20/chacha20-x86_64-glue.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,105 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -2717,8 +2688,8 @@
 +	}
 +	return false;
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/chacha20poly1305.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/chacha20poly1305.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,364 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -3084,8 +3055,8 @@
 +MODULE_DESCRIPTION("ChaCha20Poly1305 AEAD construction");
 +MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
 +#endif
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/curve25519/curve25519-arm-glue.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/curve25519/curve25519-arm-glue.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,43 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -3130,8 +3101,8 @@
 +{
 +	return false;
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/curve25519/curve25519.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/curve25519/curve25519.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,113 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -3246,8 +3217,8 @@
 +MODULE_DESCRIPTION("Curve25519 scalar multiplication");
 +MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
 +#endif
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/curve25519/curve25519-fiat32.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/curve25519/curve25519-fiat32.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,860 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -4109,8 +4080,8 @@
 +	memzero_explicit(&x3l, sizeof(x3l));
 +	memzero_explicit(&e, sizeof(e));
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/curve25519/curve25519-hacl64.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/curve25519/curve25519-hacl64.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,784 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -4896,8 +4867,8 @@
 +	}
 +	memzero_explicit(buf0, sizeof(buf0));
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/curve25519/curve25519-x86_64.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/curve25519/curve25519-x86_64.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,2326 @@
 +// SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 +/*
@@ -7225,8 +7196,8 @@
 +
 +	memzero_explicit(&m, sizeof(m));
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/curve25519/curve25519-x86_64-glue.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/curve25519/curve25519-x86_64-glue.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,48 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -7276,8 +7247,8 @@
 +	}
 +	return false;
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/poly1305/poly1305-arm-glue.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/poly1305/poly1305-arm-glue.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,140 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -7419,8 +7390,8 @@
 +		poly1305_emit_neon(ctx, mac, nonce);
 +	return true;
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/poly1305/poly1305.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/poly1305/poly1305.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,168 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -7590,8 +7561,8 @@
 +MODULE_DESCRIPTION("Poly1305 one-time authenticator");
 +MODULE_AUTHOR("Jason A. Donenfeld <Jason@zx2c4.com>");
 +#endif
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/poly1305/poly1305-donna32.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/poly1305/poly1305-donna32.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,205 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -7798,8 +7769,8 @@
 +	put_unaligned_le32(h2, &mac[8]);
 +	put_unaligned_le32(h3, &mac[12]);
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/poly1305/poly1305-donna64.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/poly1305/poly1305-donna64.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,182 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -7983,8 +7954,8 @@
 +	put_unaligned_le64(h0, &mac[0]);
 +	put_unaligned_le64(h1, &mac[8]);
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/poly1305/poly1305-mips-glue.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/poly1305/poly1305-mips-glue.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,37 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -8023,8 +7994,8 @@
 +	poly1305_emit_mips(ctx, mac, nonce);
 +	return true;
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/poly1305/poly1305-x86_64-glue.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/poly1305/poly1305-x86_64-glue.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,156 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -8182,8 +8153,8 @@
 +		poly1305_emit_avx(ctx, mac, nonce);
 +	return true;
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/selftest/blake2s.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/selftest/blake2s.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,2090 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -10275,8 +10246,8 @@
 +	}
 +	return success;
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/selftest/chacha20.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/selftest/chacha20.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,2698 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -12976,8 +12947,8 @@
 +	vfree(massive_input);
 +	return success;
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/selftest/chacha20poly1305.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/selftest/chacha20poly1305.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,9034 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -22013,8 +21984,8 @@
 +	kfree(computed_output);
 +	return success;
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/selftest/curve25519.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/selftest/curve25519.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,1315 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -23331,8 +23302,8 @@
 +
 +	return success;
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/selftest/poly1305.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/selftest/poly1305.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,1107 @@
 +// SPDX-License-Identifier: GPL-2.0 OR MIT
 +/*
@@ -24441,8 +24412,8 @@
 +
 +	return success;
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/device.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/device.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,472 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
@@ -24540,7 +24511,7 @@
 +		mutex_unlock(&wg->device_update_lock);
 +	}
 +	rtnl_unlock();
-+	rcu_barrier_bh();
++	rcu_barrier();
 +	return 0;
 +}
 +
@@ -24608,7 +24579,7 @@
 +
 +	__skb_queue_head_init(&packets);
 +	if (!skb_is_gso(skb)) {
-+		skb->next = NULL;
++		skb_mark_not_on_list(skb);
 +	} else {
 +		struct sk_buff *segs = skb_gso_segment(skb, 0);
 +
@@ -24621,7 +24592,7 @@
 +	}
 +	do {
 +		next = skb->next;
-+		skb->next = skb->prev = NULL;
++		skb_mark_not_on_list(skb);
 +
 +		skb = skb_share_check(skb, GFP_ATOMIC);
 +		if (unlikely(!skb))
@@ -24690,7 +24661,7 @@
 +	destroy_workqueue(wg->packet_crypt_wq);
 +	wg_packet_queue_free(&wg->decrypt_queue, true);
 +	wg_packet_queue_free(&wg->encrypt_queue, true);
-+	rcu_barrier_bh(); /* Wait for all the peers to be actually freed. */
++	rcu_barrier(); /* Wait for all the peers to be actually freed. */
 +	wg_ratelimiter_uninit();
 +	memzero_explicit(&wg->static_identity, sizeof(wg->static_identity));
 +	skb_queue_purge(&wg->incoming_handshakes);
@@ -24914,234 +24885,10 @@
 +#ifdef CONFIG_PM_SLEEP
 +	unregister_pm_notifier(&pm_notifier);
 +#endif
-+	rcu_barrier_bh();
++	rcu_barrier();
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/hashtables.c	2019-02-27 22:08:31.000000000 +0100
-@@ -0,0 +1,221 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
-+ */
-+
-+#include "hashtables.h"
-+#include "peer.h"
-+#include "noise.h"
-+
-+static struct hlist_head *pubkey_bucket(struct pubkey_hashtable *table,
-+					const u8 pubkey[NOISE_PUBLIC_KEY_LEN])
-+{
-+	/* siphash gives us a secure 64bit number based on a random key. Since
-+	 * the bits are uniformly distributed, we can then mask off to get the
-+	 * bits we need.
-+	 */
-+	const u64 hash = siphash(pubkey, NOISE_PUBLIC_KEY_LEN, &table->key);
-+
-+	return &table->hashtable[hash & (HASH_SIZE(table->hashtable) - 1)];
-+}
-+
-+struct pubkey_hashtable *wg_pubkey_hashtable_alloc(void)
-+{
-+	struct pubkey_hashtable *table = kvmalloc(sizeof(*table), GFP_KERNEL);
-+
-+	if (!table)
-+		return NULL;
-+
-+	get_random_bytes(&table->key, sizeof(table->key));
-+	hash_init(table->hashtable);
-+	mutex_init(&table->lock);
-+	return table;
-+}
-+
-+void wg_pubkey_hashtable_add(struct pubkey_hashtable *table,
-+			     struct wg_peer *peer)
-+{
-+	mutex_lock(&table->lock);
-+	hlist_add_head_rcu(&peer->pubkey_hash,
-+			   pubkey_bucket(table, peer->handshake.remote_static));
-+	mutex_unlock(&table->lock);
-+}
-+
-+void wg_pubkey_hashtable_remove(struct pubkey_hashtable *table,
-+				struct wg_peer *peer)
-+{
-+	mutex_lock(&table->lock);
-+	hlist_del_init_rcu(&peer->pubkey_hash);
-+	mutex_unlock(&table->lock);
-+}
-+
-+/* Returns a strong reference to a peer */
-+struct wg_peer *
-+wg_pubkey_hashtable_lookup(struct pubkey_hashtable *table,
-+			   const u8 pubkey[NOISE_PUBLIC_KEY_LEN])
-+{
-+	struct wg_peer *iter_peer, *peer = NULL;
-+
-+	rcu_read_lock_bh();
-+	hlist_for_each_entry_rcu_bh(iter_peer, pubkey_bucket(table, pubkey),
-+				    pubkey_hash) {
-+		if (!memcmp(pubkey, iter_peer->handshake.remote_static,
-+			    NOISE_PUBLIC_KEY_LEN)) {
-+			peer = iter_peer;
-+			break;
-+		}
-+	}
-+	peer = wg_peer_get_maybe_zero(peer);
-+	rcu_read_unlock_bh();
-+	return peer;
-+}
-+
-+static struct hlist_head *index_bucket(struct index_hashtable *table,
-+				       const __le32 index)
-+{
-+	/* Since the indices are random and thus all bits are uniformly
-+	 * distributed, we can find its bucket simply by masking.
-+	 */
-+	return &table->hashtable[(__force u32)index &
-+				 (HASH_SIZE(table->hashtable) - 1)];
-+}
-+
-+struct index_hashtable *wg_index_hashtable_alloc(void)
-+{
-+	struct index_hashtable *table = kvmalloc(sizeof(*table), GFP_KERNEL);
-+
-+	if (!table)
-+		return NULL;
-+
-+	hash_init(table->hashtable);
-+	spin_lock_init(&table->lock);
-+	return table;
-+}
-+
-+/* At the moment, we limit ourselves to 2^20 total peers, which generally might
-+ * amount to 2^20*3 items in this hashtable. The algorithm below works by
-+ * picking a random number and testing it. We can see that these limits mean we
-+ * usually succeed pretty quickly:
-+ *
-+ * >>> def calculation(tries, size):
-+ * ...     return (size / 2**32)**(tries - 1) *  (1 - (size / 2**32))
-+ * ...
-+ * >>> calculation(1, 2**20 * 3)
-+ * 0.999267578125
-+ * >>> calculation(2, 2**20 * 3)
-+ * 0.0007318854331970215
-+ * >>> calculation(3, 2**20 * 3)
-+ * 5.360489012673497e-07
-+ * >>> calculation(4, 2**20 * 3)
-+ * 3.9261394135792216e-10
-+ *
-+ * At the moment, we don't do any masking, so this algorithm isn't exactly
-+ * constant time in either the random guessing or in the hash list lookup. We
-+ * could require a minimum of 3 tries, which would successfully mask the
-+ * guessing. this would not, however, help with the growing hash lengths, which
-+ * is another thing to consider moving forward.
-+ */
-+
-+__le32 wg_index_hashtable_insert(struct index_hashtable *table,
-+				 struct index_hashtable_entry *entry)
-+{
-+	struct index_hashtable_entry *existing_entry;
-+
-+	spin_lock_bh(&table->lock);
-+	hlist_del_init_rcu(&entry->index_hash);
-+	spin_unlock_bh(&table->lock);
-+
-+	rcu_read_lock_bh();
-+
-+search_unused_slot:
-+	/* First we try to find an unused slot, randomly, while unlocked. */
-+	entry->index = (__force __le32)get_random_u32();
-+	hlist_for_each_entry_rcu_bh(existing_entry,
-+				    index_bucket(table, entry->index),
-+				    index_hash) {
-+		if (existing_entry->index == entry->index)
-+			/* If it's already in use, we continue searching. */
-+			goto search_unused_slot;
-+	}
-+
-+	/* Once we've found an unused slot, we lock it, and then double-check
-+	 * that nobody else stole it from us.
-+	 */
-+	spin_lock_bh(&table->lock);
-+	hlist_for_each_entry_rcu_bh(existing_entry,
-+				    index_bucket(table, entry->index),
-+				    index_hash) {
-+		if (existing_entry->index == entry->index) {
-+			spin_unlock_bh(&table->lock);
-+			/* If it was stolen, we start over. */
-+			goto search_unused_slot;
-+		}
-+	}
-+	/* Otherwise, we know we have it exclusively (since we're locked),
-+	 * so we insert.
-+	 */
-+	hlist_add_head_rcu(&entry->index_hash,
-+			   index_bucket(table, entry->index));
-+	spin_unlock_bh(&table->lock);
-+
-+	rcu_read_unlock_bh();
-+
-+	return entry->index;
-+}
-+
-+bool wg_index_hashtable_replace(struct index_hashtable *table,
-+				struct index_hashtable_entry *old,
-+				struct index_hashtable_entry *new)
-+{
-+	if (unlikely(hlist_unhashed(&old->index_hash)))
-+		return false;
-+	spin_lock_bh(&table->lock);
-+	new->index = old->index;
-+	hlist_replace_rcu(&old->index_hash, &new->index_hash);
-+
-+	/* Calling init here NULLs out index_hash, and in fact after this
-+	 * function returns, it's theoretically possible for this to get
-+	 * reinserted elsewhere. That means the RCU lookup below might either
-+	 * terminate early or jump between buckets, in which case the packet
-+	 * simply gets dropped, which isn't terrible.
-+	 */
-+	INIT_HLIST_NODE(&old->index_hash);
-+	spin_unlock_bh(&table->lock);
-+	return true;
-+}
-+
-+void wg_index_hashtable_remove(struct index_hashtable *table,
-+			       struct index_hashtable_entry *entry)
-+{
-+	spin_lock_bh(&table->lock);
-+	hlist_del_init_rcu(&entry->index_hash);
-+	spin_unlock_bh(&table->lock);
-+}
-+
-+/* Returns a strong reference to a entry->peer */
-+struct index_hashtable_entry *
-+wg_index_hashtable_lookup(struct index_hashtable *table,
-+			  const enum index_hashtable_type type_mask,
-+			  const __le32 index, struct wg_peer **peer)
-+{
-+	struct index_hashtable_entry *iter_entry, *entry = NULL;
-+
-+	rcu_read_lock_bh();
-+	hlist_for_each_entry_rcu_bh(iter_entry, index_bucket(table, index),
-+				    index_hash) {
-+		if (iter_entry->index == index) {
-+			if (likely(iter_entry->type & type_mask))
-+				entry = iter_entry;
-+			break;
-+		}
-+	}
-+	if (likely(entry)) {
-+		entry->peer = wg_peer_get_maybe_zero(entry->peer);
-+		if (likely(entry->peer))
-+			*peer = entry->peer;
-+		else
-+			entry = NULL;
-+	}
-+	rcu_read_unlock_bh();
-+	return entry;
-+}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/main.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/main.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,69 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
@@ -25212,8 +24959,8 @@
 +MODULE_VERSION(WIREGUARD_VERSION);
 +MODULE_ALIAS_RTNL_LINK(KBUILD_MODNAME);
 +MODULE_ALIAS_GENL_FAMILY(WG_GENL_NAME);
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/netlink.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/netlink.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,632 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
@@ -25847,8 +25594,8 @@
 +{
 +	genl_unregister_family(&genl_family);
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/noise.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/noise.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,807 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
@@ -25860,7 +25607,7 @@
 +#include "peer.h"
 +#include "messages.h"
 +#include "queueing.h"
-+#include "hashtables.h"
++#include "peerlookup.h"
 +
 +#include <linux/rcupdate.h>
 +#include <linux/slab.h>
@@ -25892,7 +25639,7 @@
 +	blake2s_init(&blake, NOISE_HASH_LEN);
 +	blake2s_update(&blake, handshake_init_chaining_key, NOISE_HASH_LEN);
 +	blake2s_update(&blake, identifier_name, sizeof(identifier_name));
-+	blake2s_final(&blake, handshake_init_hash, NOISE_HASH_LEN);
++	blake2s_final(&blake, handshake_init_hash);
 +}
 +
 +/* Must hold peer->handshake.static_identity->lock */
@@ -25984,7 +25731,7 @@
 +			    keypair->entry.peer->internal_id);
 +	wg_index_hashtable_remove(keypair->entry.peer->device->index_hashtable,
 +				  &keypair->entry);
-+	call_rcu_bh(&keypair->rcu, keypair_free_rcu);
++	call_rcu(&keypair->rcu, keypair_free_rcu);
 +}
 +
 +void wg_noise_keypair_put(struct noise_keypair *keypair, bool unreference_now)
@@ -26241,7 +25988,7 @@
 +	blake2s_init(&blake, NOISE_HASH_LEN);
 +	blake2s_update(&blake, hash, NOISE_HASH_LEN);
 +	blake2s_update(&blake, src, src_len);
-+	blake2s_final(&blake, hash, NOISE_HASH_LEN);
++	blake2s_final(&blake, hash);
 +}
 +
 +static void mix_psk(u8 chaining_key[NOISE_HASH_LEN], u8 hash[NOISE_HASH_LEN],
@@ -26657,8 +26404,8 @@
 +	up_write(&handshake->lock);
 +	return ret;
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/peer.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/peer.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,239 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
@@ -26669,7 +26416,7 @@
 +#include "device.h"
 +#include "queueing.h"
 +#include "timers.h"
-+#include "hashtables.h"
++#include "peerlookup.h"
 +#include "noise.h"
 +
 +#include <linux/kref.h>
@@ -26761,7 +26508,7 @@
 +	/* Mark as dead, so that we don't allow jumping contexts after. */
 +	WRITE_ONCE(peer->is_dead, true);
 +
-+	/* The caller must now synchronize_rcu_bh() for this to take effect. */
++	/* The caller must now synchronize_rcu() for this to take effect. */
 +}
 +
 +static void peer_remove_after_dead(struct wg_peer *peer)
@@ -26833,7 +26580,7 @@
 +	lockdep_assert_held(&peer->device->device_update_lock);
 +
 +	peer_make_dead(peer);
-+	synchronize_rcu_bh();
++	synchronize_rcu();
 +	peer_remove_after_dead(peer);
 +}
 +
@@ -26851,7 +26598,7 @@
 +		peer_make_dead(peer);
 +		list_add_tail(&peer->peer_list, &dead_peers);
 +	}
-+	synchronize_rcu_bh();
++	synchronize_rcu();
 +	list_for_each_entry_safe(peer, temp, &dead_peers, peer_list)
 +		peer_remove_after_dead(peer);
 +}
@@ -26890,7 +26637,7 @@
 +	wg_packet_purge_staged_packets(peer);
 +
 +	/* Free the memory used. */
-+	call_rcu_bh(&peer->rcu, rcu_release);
++	call_rcu(&peer->rcu, rcu_release);
 +}
 +
 +void wg_peer_put(struct wg_peer *peer)
@@ -26899,8 +26646,232 @@
 +		return;
 +	kref_put(&peer->refcount, kref_release);
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/queueing.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/peerlookup.c	2019-04-06 13:11:56.000000000 +0200
+@@ -0,0 +1,221 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
++ */
++
++#include "peerlookup.h"
++#include "peer.h"
++#include "noise.h"
++
++static struct hlist_head *pubkey_bucket(struct pubkey_hashtable *table,
++					const u8 pubkey[NOISE_PUBLIC_KEY_LEN])
++{
++	/* siphash gives us a secure 64bit number based on a random key. Since
++	 * the bits are uniformly distributed, we can then mask off to get the
++	 * bits we need.
++	 */
++	const u64 hash = siphash(pubkey, NOISE_PUBLIC_KEY_LEN, &table->key);
++
++	return &table->hashtable[hash & (HASH_SIZE(table->hashtable) - 1)];
++}
++
++struct pubkey_hashtable *wg_pubkey_hashtable_alloc(void)
++{
++	struct pubkey_hashtable *table = kvmalloc(sizeof(*table), GFP_KERNEL);
++
++	if (!table)
++		return NULL;
++
++	get_random_bytes(&table->key, sizeof(table->key));
++	hash_init(table->hashtable);
++	mutex_init(&table->lock);
++	return table;
++}
++
++void wg_pubkey_hashtable_add(struct pubkey_hashtable *table,
++			     struct wg_peer *peer)
++{
++	mutex_lock(&table->lock);
++	hlist_add_head_rcu(&peer->pubkey_hash,
++			   pubkey_bucket(table, peer->handshake.remote_static));
++	mutex_unlock(&table->lock);
++}
++
++void wg_pubkey_hashtable_remove(struct pubkey_hashtable *table,
++				struct wg_peer *peer)
++{
++	mutex_lock(&table->lock);
++	hlist_del_init_rcu(&peer->pubkey_hash);
++	mutex_unlock(&table->lock);
++}
++
++/* Returns a strong reference to a peer */
++struct wg_peer *
++wg_pubkey_hashtable_lookup(struct pubkey_hashtable *table,
++			   const u8 pubkey[NOISE_PUBLIC_KEY_LEN])
++{
++	struct wg_peer *iter_peer, *peer = NULL;
++
++	rcu_read_lock_bh();
++	hlist_for_each_entry_rcu_bh(iter_peer, pubkey_bucket(table, pubkey),
++				    pubkey_hash) {
++		if (!memcmp(pubkey, iter_peer->handshake.remote_static,
++			    NOISE_PUBLIC_KEY_LEN)) {
++			peer = iter_peer;
++			break;
++		}
++	}
++	peer = wg_peer_get_maybe_zero(peer);
++	rcu_read_unlock_bh();
++	return peer;
++}
++
++static struct hlist_head *index_bucket(struct index_hashtable *table,
++				       const __le32 index)
++{
++	/* Since the indices are random and thus all bits are uniformly
++	 * distributed, we can find its bucket simply by masking.
++	 */
++	return &table->hashtable[(__force u32)index &
++				 (HASH_SIZE(table->hashtable) - 1)];
++}
++
++struct index_hashtable *wg_index_hashtable_alloc(void)
++{
++	struct index_hashtable *table = kvmalloc(sizeof(*table), GFP_KERNEL);
++
++	if (!table)
++		return NULL;
++
++	hash_init(table->hashtable);
++	spin_lock_init(&table->lock);
++	return table;
++}
++
++/* At the moment, we limit ourselves to 2^20 total peers, which generally might
++ * amount to 2^20*3 items in this hashtable. The algorithm below works by
++ * picking a random number and testing it. We can see that these limits mean we
++ * usually succeed pretty quickly:
++ *
++ * >>> def calculation(tries, size):
++ * ...     return (size / 2**32)**(tries - 1) *  (1 - (size / 2**32))
++ * ...
++ * >>> calculation(1, 2**20 * 3)
++ * 0.999267578125
++ * >>> calculation(2, 2**20 * 3)
++ * 0.0007318854331970215
++ * >>> calculation(3, 2**20 * 3)
++ * 5.360489012673497e-07
++ * >>> calculation(4, 2**20 * 3)
++ * 3.9261394135792216e-10
++ *
++ * At the moment, we don't do any masking, so this algorithm isn't exactly
++ * constant time in either the random guessing or in the hash list lookup. We
++ * could require a minimum of 3 tries, which would successfully mask the
++ * guessing. this would not, however, help with the growing hash lengths, which
++ * is another thing to consider moving forward.
++ */
++
++__le32 wg_index_hashtable_insert(struct index_hashtable *table,
++				 struct index_hashtable_entry *entry)
++{
++	struct index_hashtable_entry *existing_entry;
++
++	spin_lock_bh(&table->lock);
++	hlist_del_init_rcu(&entry->index_hash);
++	spin_unlock_bh(&table->lock);
++
++	rcu_read_lock_bh();
++
++search_unused_slot:
++	/* First we try to find an unused slot, randomly, while unlocked. */
++	entry->index = (__force __le32)get_random_u32();
++	hlist_for_each_entry_rcu_bh(existing_entry,
++				    index_bucket(table, entry->index),
++				    index_hash) {
++		if (existing_entry->index == entry->index)
++			/* If it's already in use, we continue searching. */
++			goto search_unused_slot;
++	}
++
++	/* Once we've found an unused slot, we lock it, and then double-check
++	 * that nobody else stole it from us.
++	 */
++	spin_lock_bh(&table->lock);
++	hlist_for_each_entry_rcu_bh(existing_entry,
++				    index_bucket(table, entry->index),
++				    index_hash) {
++		if (existing_entry->index == entry->index) {
++			spin_unlock_bh(&table->lock);
++			/* If it was stolen, we start over. */
++			goto search_unused_slot;
++		}
++	}
++	/* Otherwise, we know we have it exclusively (since we're locked),
++	 * so we insert.
++	 */
++	hlist_add_head_rcu(&entry->index_hash,
++			   index_bucket(table, entry->index));
++	spin_unlock_bh(&table->lock);
++
++	rcu_read_unlock_bh();
++
++	return entry->index;
++}
++
++bool wg_index_hashtable_replace(struct index_hashtable *table,
++				struct index_hashtable_entry *old,
++				struct index_hashtable_entry *new)
++{
++	if (unlikely(hlist_unhashed(&old->index_hash)))
++		return false;
++	spin_lock_bh(&table->lock);
++	new->index = old->index;
++	hlist_replace_rcu(&old->index_hash, &new->index_hash);
++
++	/* Calling init here NULLs out index_hash, and in fact after this
++	 * function returns, it's theoretically possible for this to get
++	 * reinserted elsewhere. That means the RCU lookup below might either
++	 * terminate early or jump between buckets, in which case the packet
++	 * simply gets dropped, which isn't terrible.
++	 */
++	INIT_HLIST_NODE(&old->index_hash);
++	spin_unlock_bh(&table->lock);
++	return true;
++}
++
++void wg_index_hashtable_remove(struct index_hashtable *table,
++			       struct index_hashtable_entry *entry)
++{
++	spin_lock_bh(&table->lock);
++	hlist_del_init_rcu(&entry->index_hash);
++	spin_unlock_bh(&table->lock);
++}
++
++/* Returns a strong reference to a entry->peer */
++struct index_hashtable_entry *
++wg_index_hashtable_lookup(struct index_hashtable *table,
++			  const enum index_hashtable_type type_mask,
++			  const __le32 index, struct wg_peer **peer)
++{
++	struct index_hashtable_entry *iter_entry, *entry = NULL;
++
++	rcu_read_lock_bh();
++	hlist_for_each_entry_rcu_bh(iter_entry, index_bucket(table, index),
++				    index_hash) {
++		if (iter_entry->index == index) {
++			if (likely(iter_entry->type & type_mask))
++				entry = iter_entry;
++			break;
++		}
++	}
++	if (likely(entry)) {
++		entry->peer = wg_peer_get_maybe_zero(entry->peer);
++		if (likely(entry->peer))
++			*peer = entry->peer;
++		else
++			entry = NULL;
++	}
++	rcu_read_unlock_bh();
++	return entry;
++}
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/queueing.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,53 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
@@ -26955,13 +26926,25 @@
 +	WARN_ON(!__ptr_ring_empty(&queue->ring));
 +	ptr_ring_cleanup(&queue->ring, NULL);
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/ratelimiter.c	2019-02-27 22:08:31.000000000 +0100
-@@ -0,0 +1,223 @@
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/ratelimiter.c	2019-04-06 13:11:56.000000000 +0200
+@@ -0,0 +1,235 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
 + * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 + */
++
++#ifdef COMPAT_CANNOT_DEPRECIATE_BH_RCU
++/* We normally alias all non-_bh functions to the _bh ones in the compat layer,
++ * but that's not appropriate here, where we actually do want non-_bh ones.
++ */
++#undef synchronize_rcu
++#define synchronize_rcu old_synchronize_rcu
++#undef call_rcu
++#define call_rcu old_call_rcu
++#undef rcu_barrier
++#define rcu_barrier old_rcu_barrier
++#endif
 +
 +#include "ratelimiter.h"
 +#include <linux/siphash.h>
@@ -27181,8 +27164,8 @@
 +}
 +
 +#include "selftest/ratelimiter.c"
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/receive.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/receive.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,606 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
@@ -27790,8 +27773,8 @@
 +err:
 +	dev_kfree_skb(skb);
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/selftest/allowedips.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/selftest/allowedips.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,682 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
@@ -28475,8 +28458,8 @@
 +#undef init_peer
 +
 +#endif
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/selftest/counter.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/selftest/counter.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,104 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
@@ -28582,8 +28565,8 @@
 +	return success;
 +}
 +#endif
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/selftest/ratelimiter.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/selftest/ratelimiter.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,226 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
@@ -28811,8 +28794,8 @@
 +	return success;
 +}
 +#endif
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/send.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/send.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,431 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
@@ -29245,8 +29228,8 @@
 +	 */
 +	wg_packet_send_queued_handshake_initiation(peer, false);
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/socket.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/socket.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,433 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
@@ -29676,13 +29659,13 @@
 +	if (new4)
 +		wg->incoming_port = ntohs(inet_sk(new4)->inet_sport);
 +	mutex_unlock(&wg->socket_update_lock);
-+	synchronize_rcu_bh();
++	synchronize_rcu();
 +	synchronize_net();
 +	sock_free(old4);
 +	sock_free(old6);
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/timers.c	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/timers.c	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,241 @@
 +// SPDX-License-Identifier: GPL-2.0
 +/*
@@ -29925,8 +29908,8 @@
 +	del_timer_sync(&peer->timer_persistent_keepalive);
 +	flush_work(&peer->clear_peer_work);
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/allowedips.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/allowedips.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,59 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -29987,8 +29970,8 @@
 +#endif
 +
 +#endif /* _WG_ALLOWEDIPS_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/checksum/checksum_partial_compat.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/checksum/checksum_partial_compat.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,208 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -30198,8 +30181,8 @@
 +	}
 +	return err;
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/compat-asm.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/compat-asm.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,43 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -30244,9 +30227,9 @@
 +#endif
 +
 +#endif /* _WG_COMPATASM_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/compat.h	2019-02-27 22:08:31.000000000 +0100
-@@ -0,0 +1,839 @@
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/compat.h	2019-04-06 13:11:56.000000000 +0200
+@@ -0,0 +1,881 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
 + * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
@@ -31027,6 +31010,46 @@
 +#define skb_probe_transport_header(a) skb_probe_transport_header(a, 0)
 +#endif
 +
++
++#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
++/* Note that all intentional uses of the non-_bh variety need to explicitly
++ * undef these, conditionalized on COMPAT_CANNOT_DEPRECIATE_BH_RCU.
++ */
++#include <linux/rcupdate.h>
++static __always_inline void old_synchronize_rcu(void)
++{
++	synchronize_rcu();
++}
++static __always_inline void old_call_rcu(void *a, void *b)
++{
++	call_rcu(a, b);
++}
++static __always_inline void old_rcu_barrier(void)
++{
++	rcu_barrier();
++}
++#ifdef synchronize_rcu
++#undef synchronize_rcu
++#endif
++#ifdef call_rcu
++#undef call_rcu
++#endif
++#ifdef rcu_barrier
++#undef rcu_barrier
++#endif
++#define synchronize_rcu synchronize_rcu_bh
++#define call_rcu call_rcu_bh
++#define rcu_barrier rcu_barrier_bh
++#define COMPAT_CANNOT_DEPRECIATE_BH_RCU
++#endif
++
++#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 19, 10)
++static inline void skb_mark_not_on_list(struct sk_buff *skb)
++{
++	skb->next = NULL;
++}
++#endif
++
 +/* https://github.com/ClangBuiltLinux/linux/issues/7 */
 +#if defined( __clang__) && (!defined(CONFIG_CLANG_VERSION) || CONFIG_CLANG_VERSION < 80000)
 +#include <linux/bug.h>
@@ -31041,7 +31064,9 @@
 +#include <net/ipv6.h>
 +#include <net/icmp.h>
 +#include <net/netfilter/nf_conntrack.h>
++#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
 +#include <net/netfilter/nf_nat_core.h>
++#endif
 +static inline void new_icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 +{
 +	enum ip_conntrack_info ctinfo;
@@ -31086,8 +31111,8 @@
 +#endif
 +
 +#endif /* _WG_COMPAT_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/dst_cache/include/net/dst_cache.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/dst_cache/include/net/dst_cache.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,97 @@
 +#ifndef _WG_NET_DST_CACHE_H
 +#define _WG_NET_DST_CACHE_H
@@ -31186,12 +31211,12 @@
 +void dst_cache_destroy(struct dst_cache *dst_cache);
 +
 +#endif /* _WG_NET_DST_CACHE_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/fpu-x86/include/asm/fpu/api.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/fpu-x86/include/asm/fpu/api.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1 @@
 +#include <asm/i387.h>
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/intel-family-x86/include/asm/intel-family.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/intel-family-x86/include/asm/intel-family.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,73 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +#ifndef _ASM_X86_INTEL_FAMILY_H
@@ -31266,16 +31291,16 @@
 +#define INTEL_FAM6_XEON_PHI_KNM		0x85 /* Knights Mill */
 +
 +#endif /* _ASM_X86_INTEL_FAMILY_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/memneq/include.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/memneq/include.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,5 @@
 +extern noinline unsigned long __crypto_memneq(const void *a, const void *b, size_t size);
 +static inline int crypto_memneq(const void *a, const void *b, size_t size)
 +{
 +	return __crypto_memneq(a, b, size) != 0UL ? 1 : 0;
 +}
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/neon-arm/include/asm/neon.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/neon-arm/include/asm/neon.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,7 @@
 +#ifndef _ARCH_ARM_ASM_NEON
 +#define _ARCH_ARM_ASM_NEON
@@ -31284,8 +31309,8 @@
 +#define kernel_neon_end() \
 +	BUILD_BUG_ON_MSG(1, "This kernel does not support ARM NEON")
 +#endif
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/ptr_ring/include/linux/ptr_ring.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/ptr_ring/include/linux/ptr_ring.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,640 @@
 +/*
 + *	Definitions for the 'struct ptr_ring' datastructure.
@@ -31927,8 +31952,8 @@
 +}
 +
 +#endif /* _LINUX_PTR_RING_H  */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/simd-asm/include/asm/simd.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/simd-asm/include/asm/simd.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,21 @@
 +#ifndef _COMPAT_ASM_SIMD_H
 +#define _COMPAT_ASM_SIMD_H
@@ -31951,8 +31976,8 @@
 +}
 +
 +#endif
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/simd/include/linux/simd.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/simd/include/linux/simd.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,70 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -32024,8 +32049,8 @@
 +}
 +
 +#endif /* _WG_SIMD_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/siphash/include/linux/siphash.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/siphash/include/linux/siphash.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,140 @@
 +/* Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 + *
@@ -32167,8 +32192,8 @@
 +}
 +
 +#endif /* _WG_LINUX_SIPHASH_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/udp_tunnel/include/net/udp_tunnel.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/udp_tunnel/include/net/udp_tunnel.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,94 @@
 +#ifndef _WG_NET_UDP_TUNNEL_H
 +#define _WG_NET_UDP_TUNNEL_H
@@ -32264,8 +32289,8 @@
 +void udp_tunnel_sock_release(struct socket *sock);
 +
 +#endif /* _WG_NET_UDP_TUNNEL_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/udp_tunnel/udp_tunnel_partial_compat.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/udp_tunnel/udp_tunnel_partial_compat.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,226 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -32493,8 +32518,8 @@
 +#define udp_port_cfg udp_port_cfg_new
 +#define udp_sock_create(a, b, c) udp_sock_create_new(a, b, c)
 +#endif
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/cookie.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/cookie.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,59 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -32555,8 +32580,8 @@
 +			       struct wg_device *wg);
 +
 +#endif /* _WG_COOKIE_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/include/zinc/blake2s.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/include/zinc/blake2s.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,56 @@
 +/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 +/*
@@ -32581,15 +32606,15 @@
 +	u32 t[2];
 +	u32 f[2];
 +	u8 buf[BLAKE2S_BLOCK_SIZE];
-+	size_t buflen;
-+	u8 last_node;
++	unsigned int buflen;
++	unsigned int outlen;
 +};
 +
 +void blake2s_init(struct blake2s_state *state, const size_t outlen);
 +void blake2s_init_key(struct blake2s_state *state, const size_t outlen,
 +		      const void *key, const size_t keylen);
 +void blake2s_update(struct blake2s_state *state, const u8 *in, size_t inlen);
-+void blake2s_final(struct blake2s_state *state, u8 *out, const size_t outlen);
++void blake2s_final(struct blake2s_state *state, u8 *out);
 +
 +static inline void blake2s(u8 *out, const u8 *in, const u8 *key,
 +			   const size_t outlen, const size_t inlen,
@@ -32607,15 +32632,15 @@
 +		blake2s_init(&state, outlen);
 +
 +	blake2s_update(&state, in, inlen);
-+	blake2s_final(&state, out, outlen);
++	blake2s_final(&state, out);
 +}
 +
 +void blake2s_hmac(u8 *out, const u8 *in, const u8 *key, const size_t outlen,
 +		  const size_t inlen, const size_t keylen);
 +
 +#endif /* _ZINC_BLAKE2S_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/include/zinc/chacha20.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/include/zinc/chacha20.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,70 @@
 +/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 +/*
@@ -32687,8 +32712,8 @@
 +	       const u8 key[HCHACHA20_KEY_SIZE], simd_context_t *simd_context);
 +
 +#endif /* _ZINC_CHACHA20_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/include/zinc/chacha20poly1305.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/include/zinc/chacha20poly1305.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,50 @@
 +/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 +/*
@@ -32740,8 +32765,8 @@
 +	const u8 key[CHACHA20POLY1305_KEY_SIZE]);
 +
 +#endif /* _ZINC_CHACHA20POLY1305_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/include/zinc/curve25519.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/include/zinc/curve25519.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,28 @@
 +/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 +/*
@@ -32771,8 +32796,8 @@
 +}
 +
 +#endif /* _ZINC_CURVE25519_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/include/zinc/poly1305.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/include/zinc/poly1305.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,31 @@
 +/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 +/*
@@ -32805,8 +32830,8 @@
 +		    simd_context_t *simd_context);
 +
 +#endif /* _ZINC_POLY1305_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,15 @@
 +/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 +/*
@@ -32823,8 +32848,8 @@
 +int curve25519_mod_init(void);
 +
 +#endif
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/selftest/run.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/selftest/run.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,48 @@
 +/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 +/*
@@ -32874,8 +32899,8 @@
 +}
 +
 +#endif
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/device.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/device.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,65 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -32887,7 +32912,7 @@
 +
 +#include "noise.h"
 +#include "allowedips.h"
-+#include "hashtables.h"
++#include "peerlookup.h"
 +#include "cookie.h"
 +
 +#include <linux/types.h>
@@ -32942,75 +32967,8 @@
 +void wg_device_uninit(void);
 +
 +#endif /* _WG_DEVICE_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/hashtables.h	2019-02-27 22:08:31.000000000 +0100
-@@ -0,0 +1,64 @@
-+/* SPDX-License-Identifier: GPL-2.0 */
-+/*
-+ * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
-+ */
-+
-+#ifndef _WG_HASHTABLES_H
-+#define _WG_HASHTABLES_H
-+
-+#include "messages.h"
-+
-+#include <linux/hashtable.h>
-+#include <linux/mutex.h>
-+#include <linux/siphash.h>
-+
-+struct wg_peer;
-+
-+struct pubkey_hashtable {
-+	/* TODO: move to rhashtable */
-+	DECLARE_HASHTABLE(hashtable, 11);
-+	siphash_key_t key;
-+	struct mutex lock;
-+};
-+
-+struct pubkey_hashtable *wg_pubkey_hashtable_alloc(void);
-+void wg_pubkey_hashtable_add(struct pubkey_hashtable *table,
-+			     struct wg_peer *peer);
-+void wg_pubkey_hashtable_remove(struct pubkey_hashtable *table,
-+				struct wg_peer *peer);
-+struct wg_peer *
-+wg_pubkey_hashtable_lookup(struct pubkey_hashtable *table,
-+			   const u8 pubkey[NOISE_PUBLIC_KEY_LEN]);
-+
-+struct index_hashtable {
-+	/* TODO: move to rhashtable */
-+	DECLARE_HASHTABLE(hashtable, 13);
-+	spinlock_t lock;
-+};
-+
-+enum index_hashtable_type {
-+	INDEX_HASHTABLE_HANDSHAKE = 1U << 0,
-+	INDEX_HASHTABLE_KEYPAIR = 1U << 1
-+};
-+
-+struct index_hashtable_entry {
-+	struct wg_peer *peer;
-+	struct hlist_node index_hash;
-+	enum index_hashtable_type type;
-+	__le32 index;
-+};
-+
-+struct index_hashtable *wg_index_hashtable_alloc(void);
-+__le32 wg_index_hashtable_insert(struct index_hashtable *table,
-+				 struct index_hashtable_entry *entry);
-+bool wg_index_hashtable_replace(struct index_hashtable *table,
-+				struct index_hashtable_entry *old,
-+				struct index_hashtable_entry *new);
-+void wg_index_hashtable_remove(struct index_hashtable *table,
-+			       struct index_hashtable_entry *entry);
-+struct index_hashtable_entry *
-+wg_index_hashtable_lookup(struct index_hashtable *table,
-+			  const enum index_hashtable_type type_mask,
-+			  const __le32 index, struct wg_peer **peer);
-+
-+#endif /* _WG_HASHTABLES_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/messages.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/messages.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,128 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -33140,8 +33098,8 @@
 +enum { HANDSHAKE_DSCP = 0x88 /* AF41, plus 00 ECN */ };
 +
 +#endif /* _WG_MESSAGES_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/netlink.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/netlink.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,12 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -33155,8 +33113,8 @@
 +void wg_genetlink_uninit(void);
 +
 +#endif /* _WG_NETLINK_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/noise.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/noise.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,131 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -33166,7 +33124,7 @@
 +#define _WG_NOISE_H
 +
 +#include "messages.h"
-+#include "hashtables.h"
++#include "peerlookup.h"
 +
 +#include <linux/types.h>
 +#include <linux/spinlock.h>
@@ -33289,8 +33247,8 @@
 +				      struct noise_keypairs *keypairs);
 +
 +#endif /* _WG_NOISE_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/peer.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/peer.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,83 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -33375,8 +33333,75 @@
 +void wg_peer_remove_all(struct wg_device *wg);
 +
 +#endif /* _WG_PEER_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/queueing.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/peerlookup.h	2019-04-06 13:11:56.000000000 +0200
+@@ -0,0 +1,64 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * Copyright (C) 2015-2019 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
++ */
++
++#ifndef _WG_PEERLOOKUP_H
++#define _WG_PEERLOOKUP_H
++
++#include "messages.h"
++
++#include <linux/hashtable.h>
++#include <linux/mutex.h>
++#include <linux/siphash.h>
++
++struct wg_peer;
++
++struct pubkey_hashtable {
++	/* TODO: move to rhashtable */
++	DECLARE_HASHTABLE(hashtable, 11);
++	siphash_key_t key;
++	struct mutex lock;
++};
++
++struct pubkey_hashtable *wg_pubkey_hashtable_alloc(void);
++void wg_pubkey_hashtable_add(struct pubkey_hashtable *table,
++			     struct wg_peer *peer);
++void wg_pubkey_hashtable_remove(struct pubkey_hashtable *table,
++				struct wg_peer *peer);
++struct wg_peer *
++wg_pubkey_hashtable_lookup(struct pubkey_hashtable *table,
++			   const u8 pubkey[NOISE_PUBLIC_KEY_LEN]);
++
++struct index_hashtable {
++	/* TODO: move to rhashtable */
++	DECLARE_HASHTABLE(hashtable, 13);
++	spinlock_t lock;
++};
++
++enum index_hashtable_type {
++	INDEX_HASHTABLE_HANDSHAKE = 1U << 0,
++	INDEX_HASHTABLE_KEYPAIR = 1U << 1
++};
++
++struct index_hashtable_entry {
++	struct wg_peer *peer;
++	struct hlist_node index_hash;
++	enum index_hashtable_type type;
++	__le32 index;
++};
++
++struct index_hashtable *wg_index_hashtable_alloc(void);
++__le32 wg_index_hashtable_insert(struct index_hashtable *table,
++				 struct index_hashtable_entry *entry);
++bool wg_index_hashtable_replace(struct index_hashtable *table,
++				struct index_hashtable_entry *old,
++				struct index_hashtable_entry *new);
++void wg_index_hashtable_remove(struct index_hashtable *table,
++			       struct index_hashtable_entry *entry);
++struct index_hashtable_entry *
++wg_index_hashtable_lookup(struct index_hashtable *table,
++			  const enum index_hashtable_type type_mask,
++			  const __le32 index, struct wg_peer **peer);
++
++#endif /* _WG_PEERLOOKUP_H */
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/queueing.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,198 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -33576,8 +33601,8 @@
 +#endif
 +
 +#endif /* _WG_QUEUEING_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/ratelimiter.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/ratelimiter.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,19 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -33598,8 +33623,8 @@
 +#endif
 +
 +#endif /* _WG_RATELIMITER_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/socket.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/socket.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,44 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -33645,8 +33670,8 @@
 +#endif
 +
 +#endif /* _WG_SOCKET_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/timers.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/timers.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,31 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -33679,8 +33704,8 @@
 +}
 +
 +#endif /* _WG_TIMERS_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/uapi/wireguard.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/uapi/wireguard.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,190 @@
 +/* SPDX-License-Identifier: (GPL-2.0 WITH Linux-syscall-note) OR MIT */
 +/*
@@ -33872,12 +33897,12 @@
 +#define WGALLOWEDIP_A_MAX (__WGALLOWEDIP_A_LAST - 1)
 +
 +#endif /* _WG_UAPI_WIREGUARD_H */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/version.h	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/version.h	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1 @@
-+#define WIREGUARD_VERSION "0.0.20190227"
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/blake2s/blake2s-x86_64.S	2019-02-27 22:08:31.000000000 +0100
++#define WIREGUARD_VERSION "0.0.20190406"
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/blake2s/blake2s-x86_64.S	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,685 @@
 +/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 +/*
@@ -34564,8 +34589,8 @@
 +	retq
 +ENDPROC(blake2s_compress_avx512)
 +#endif /* CONFIG_AS_AVX512 */
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/chacha20/chacha20-mips.S	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/chacha20/chacha20-mips.S	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,424 @@
 +/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 +/*
@@ -34991,8 +35016,8 @@
 +	FOR_EACH_WORD(JMPTBL_UNALIGNED)
 +.end chacha20_mips
 +.set at
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/chacha20/chacha20-unrolled-arm.S	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/chacha20/chacha20-unrolled-arm.S	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,461 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +/*
@@ -35455,8 +35480,8 @@
 +
 +	pop		{r4-r11,pc}
 +ENDPROC(hchacha20_arm)
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/curve25519/curve25519-arm.S	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/curve25519/curve25519-arm.S	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,2064 @@
 +/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 +/*
@@ -37522,8 +37547,8 @@
 +	pop		{r4-r11, pc}
 +ENDPROC(curve25519_neon)
 +#endif
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/poly1305/poly1305-mips.S	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/poly1305/poly1305-mips.S	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,407 @@
 +/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 +/*
@@ -37932,8 +37957,8 @@
 +	/* Jump Back  */
 +	jr	$ra
 +.end poly1305_init_mips
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/chacha20/chacha20-arm64.pl	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/chacha20/chacha20-arm64.pl	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,1163 @@
 +#!/usr/bin/env perl
 +# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
@@ -39098,8 +39123,8 @@
 +	print $_,"\n";
 +}
 +close STDOUT;	# flush
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/chacha20/chacha20-arm.pl	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/chacha20/chacha20-arm.pl	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,1227 @@
 +#!/usr/bin/env perl
 +# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
@@ -40328,8 +40353,8 @@
 +	print $_,"\n";
 +}
 +close STDOUT;
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/chacha20/chacha20-x86_64.pl	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/chacha20/chacha20-x86_64.pl	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,4106 @@
 +#!/usr/bin/env perl
 +# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
@@ -44437,8 +44462,8 @@
 +}
 +
 +close STDOUT;
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/poly1305/poly1305-arm64.pl	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/poly1305/poly1305-arm64.pl	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,974 @@
 +#!/usr/bin/env perl
 +# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
@@ -45414,8 +45439,8 @@
 +	print $_,"\n";
 +}
 +close STDOUT;
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/poly1305/poly1305-arm.pl	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/poly1305/poly1305-arm.pl	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,1276 @@
 +#!/usr/bin/env perl
 +# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
@@ -46693,8 +46718,8 @@
 +	print $_,"\n";
 +}
 +close STDOUT; # enforce flush
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/poly1305/poly1305-mips64.pl	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/poly1305/poly1305-mips64.pl	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,467 @@
 +#!/usr/bin/env perl
 +# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
@@ -47163,8 +47188,8 @@
 +print $code;
 +close STDOUT;
 +
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/zinc/poly1305/poly1305-x86_64.pl	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/zinc/poly1305/poly1305-x86_64.pl	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,4266 @@
 +#!/usr/bin/env perl
 +# SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
@@ -51432,8 +51457,8 @@
 +	print $_,"\n";
 +}
 +close STDOUT;
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/compat/Makefile.include	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/compat/Makefile.include	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,78 @@
 +# SPDX-License-Identifier: GPL-2.0
 +#
@@ -51513,8 +51538,8 @@
 +		asflags-y += $(avx512_instr)
 +	endif
 +endif
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/crypto/Makefile.include	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/crypto/Makefile.include	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,57 @@
 +ifeq ($(CONFIG_X86_64)$(if $(CONFIG_UML),y,n),yn)
 +CONFIG_ZINC_ARCH_X86_64 := y
@@ -51573,8 +51598,8 @@
 +ccflags-$(CONFIG_ZINC_ARCH_MIPS) += -DCONFIG_ZINC_ARCH_MIPS
 +ccflags-$(CONFIG_ZINC_ARCH_MIPS64) += -DCONFIG_ZINC_ARCH_MIPS64
 +ccflags-$(CONFIG_WIREGUARD_DEBUG) += -DCONFIG_ZINC_SELFTEST
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/Makefile	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/Makefile	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,14 @@
 +# SPDX-License-Identifier: GPL-2.0
 +#
@@ -51584,14 +51609,14 @@
 +ccflags-$(CONFIG_WIREGUARD_DEBUG) += -DDEBUG -g
 +ccflags-y += -D'pr_fmt(fmt)=KBUILD_MODNAME ": " fmt'
 +
-+wireguard-y := main.o noise.o device.o peer.o timers.o queueing.o send.o receive.o socket.o hashtables.o allowedips.o ratelimiter.o cookie.o netlink.o
++wireguard-y := main.o noise.o device.o peer.o timers.o queueing.o send.o receive.o socket.o peerlookup.o allowedips.o ratelimiter.o cookie.o netlink.o
 +
 +include $(src)/crypto/Makefile.include
 +include $(src)/compat/Makefile.include
 +
 +obj-$(if $(KBUILD_EXTMOD),m,$(CONFIG_WIREGUARD)) := wireguard.o
---- /dev/null	2019-03-01 16:35:13.883999708 +0100
-+++ b/net/wireguard/Kconfig	2019-02-27 22:08:31.000000000 +0100
+--- /dev/null	2019-03-19 17:47:24.411999675 +0100
++++ b/net/wireguard/Kconfig	2019-04-06 13:11:56.000000000 +0200
 @@ -0,0 +1,32 @@
 +config WIREGUARD
 +	tristate "IP: WireGuard secure network tunnel"
