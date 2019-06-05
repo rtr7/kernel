@@ -104,6 +104,9 @@ CONFIG_SENSORS_K10TEMP=y
 
 # For iproute2’s ss(8):
 CONFIG_INET_DIAG=y
+
+# For macvlan ethernet devices:
+CONFIG_MACVLAN=y
 `
 
 func downloadKernel() error {

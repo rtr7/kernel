@@ -55,6 +55,7 @@ var dockerFileTmpl = template.Must(template.New("dockerfile").
 
 var patchFiles = []string{
 	"wireguard.patch",
+	"neighbor.patch",
 }
 
 func copyFile(dest, src string) error {
