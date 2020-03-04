@@ -6,7 +6,7 @@ services:
 
 language: go
 go:
-  - 1.12
+  - "1.14"
 
 addons:
   apt:
@@ -15,6 +15,9 @@ addons:
     - qemu-system-x86
 
 env:
+  jobs:
+  - GO111MODULE=on
+
   global:
   # GITHUB_USER
   - secure: "grjMfi9BAE+/CSkv1Xtfmux9MKOWeIp7l0zeayk1QBnPswCzOBK7T6rvQ2A4XVfJrVA3cid45kiyjAdtEjgB0mbMOUXS0XtPENb6FopSOG+hDcd69RrSHBsUGbHzipl/iL5+BV4pjzy2Jhbb2UYhVib+PWMUBV8r10wZ1pCz9vtYJAn4nmdFJnfJ0zbdoUN4mtg7LK7j5GVBZxYOrwzD0VKkQU8GOHrAPYY0CJrbXvPM/+DJsO5h6oGB5HA0ixH5jmhQtw7GF/769o+NLt3ktKrPsSVennNtBZqZijNJ5q9acBQtt+VazVWP2a2rD0lXco1Gi4UNTxeRNst3X1YIqi6+ELTAcbCv7XrpjkHe5orp7QkIEtqnM274X4UxGBEsHYn1IYbRylvnsd4iDFxPcyoeVWJjFMRNk4CaPx0mpd3cJEHRNFjHEOnoKddAQ1JkY9iO3w+xZOosTLiun0lclamB+Krx6RnQOEZVgnZpOVgFX6JHyu5/JgG69els2m6Jd9TGPqmUvV+ilvjkzR7FQD1fu+Nk7ghid6/NeDaP6PtVj8lYtoSBaY/2dMTjLPuIejXW6kUzwP2LQy4zQedOjMnn1jevg9+NjFmkXPfNTN+CmHUbh+E1SwF3ZtLbbb4ijdWR6XMh3FCg6fykJFCh1gwu/2b250qUkHtsO1du/7k="
