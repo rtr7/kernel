@@ -107,6 +107,14 @@ CONFIG_INET_DIAG=y
 
 # For macvlan ethernet devices:
 CONFIG_MACVLAN=y
+
+# For virtio drivers (for qemu):
+CONFIG_VIRTIO_PCI=y
+CONFIG_VIRTIO_BALLOON=y
+CONFIG_VIRTIO_BLK=y
+CONFIG_VIRTIO_NET=y
+CONFIG_VIRTIO=y
+CONFIG_VIRTIO_RING=y
 `
 
 func downloadKernel() error {
