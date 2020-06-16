@@ -115,6 +115,8 @@ CONFIG_VIRTIO_BLK=y
 CONFIG_VIRTIO_NET=y
 CONFIG_VIRTIO=y
 CONFIG_VIRTIO_RING=y
+# For watchdog within qemu:
+CONFIG_I6300ESB_WDT=y
 `
 
 func downloadKernel() error {
