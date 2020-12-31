@@ -1,8 +1,9 @@
-name: Push
+name: Update kernel ref
 
 on:
-  push:
-    branches: [ master ]
+  schedule:
+    # daily, hour and minute chosen arbitrarily
+    - cron:  '8 3 * * *'
 
 jobs:
 
@@ -25,12 +26,14 @@ jobs:
       run: |
         [ "$(gofmt -l $(find . -name '*.go') 2>&1)" = "" ]
 
-    - name: Build Linux kernel and amend Pull Request
+    - name: Get dependencies
+      run: |
+        GOPROXY=direct go get -u github.com/gokrazy/autoupdate/cmd/gokr-pull-kernel
+
+    - name: Update kernel reference if newer kernel is available
       env:
         GITHUB_REPOSITORY: ${{ secrets.GITHUB_REPOSITORY }}
         GH_USER: ${{ secrets.GH_USER }}
         GH_AUTH_TOKEN: ${{ secrets.GH_AUTH_TOKEN }}
-      if: ${{ env.GH_USER != 0 }}
       run: |
-        go install ./cmd/rtr7-rebuild-kernel
-        rtr7-rebuild-kernel
+        gokr-pull-kernel -updater_path=cmd/rtr7-build-kernel/build.go
