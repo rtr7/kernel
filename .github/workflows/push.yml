@@ -32,4 +32,4 @@ jobs:
     - name: Get dependencies
       run: |
         go get -u github.com/gokrazy/autoupdate/cmd/... github.com/gokrazy/tools/cmd/gokr-packer github.com/gokrazy/bakery/cmd/qemubootery
-        qemubootery
+        qemubootery & GOARCH=amd64 gokr-boot -require_label=please-boot-qemu -set_label=please-merge -bootery_url=http://localhost:8037/testboot -kernel_package=github.com/rtr7/kernel -firmware_package=github.com/rtr7/kernel -serial_console=ttyS0,115200
