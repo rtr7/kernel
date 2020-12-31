@@ -29,7 +29,15 @@ jobs:
       run: |
         sudo apt install qemu-system-x86
 
-    - name: Get dependencies
+    - name: Test boot
+      env:
+        GITHUB_REPOSITORY: ${{ secrets.GITHUB_REPOSITORY }}
+        GH_USER: ${{ secrets.GH_USER }}
+        GH_AUTH_TOKEN: ${{ secrets.GH_AUTH_TOKEN }}
+        TRAVIS_PULL_REQUEST: ${{ github.event.pull_request.number }}
+        TRAVIS_PULL_REQUEST_BRANCH: ${{ github.event.pull_request.head.ref }}
+        BOOTERY_URL: ${{ secrets.BOOTERY_URL }}
+      if: ${{ env.GH_USER != 0 }}
       run: |
         go get -u github.com/gokrazy/autoupdate/cmd/... github.com/gokrazy/tools/cmd/gokr-packer github.com/gokrazy/bakery/cmd/qemubootery
         qemubootery & GOARCH=amd64 gokr-boot -require_label=please-boot-qemu -set_label=please-merge -bootery_url=http://localhost:8037/testboot -kernel_package=github.com/rtr7/kernel -firmware_package=github.com/rtr7/kernel -serial_console=ttyS0,115200
