@@ -35,5 +35,6 @@ jobs:
         GITHUB_REPOSITORY: ${{ secrets.GITHUB_REPOSITORY }}
         GH_USER: ${{ secrets.GH_USER }}
         GH_AUTH_TOKEN: ${{ secrets.GH_AUTH_TOKEN }}
+      if: ${{ env.GH_USER != 0 }}
       run: |
         gokr-pull-kernel -updater_path=cmd/rtr7-build-kernel/build.go
