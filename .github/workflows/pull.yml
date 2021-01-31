@@ -27,7 +27,7 @@ jobs:
 
     - name: Install dependencies
       run: |
-        sudo apt install qemu-system-x86
+        sudo apt update && sudo apt install qemu-system-x86
 
     # TODO: once https://github.com/actions/runner/issues/662 is fixed, we can
     # remove the gokr-has-label guards and terminate a CI run instead.
