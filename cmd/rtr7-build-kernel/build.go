@@ -99,6 +99,9 @@ CONFIG_NVME_MULTIPATH=y
 CONFIG_NVME_HWMON=y
 CONFIG_NVME_TARGET_PASSTHRU=y
 
+# For https://www.fs.com/products/75602.html and https://www.fs.com/products/75603.html network cards:
+CONFIG_I40E=y
+
 # For apu2c4 ethernet ports
 CONFIG_IGB=y
 
