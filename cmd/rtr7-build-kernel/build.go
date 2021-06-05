@@ -140,6 +140,9 @@ CONFIG_VIRTIO=y
 CONFIG_VIRTIO_RING=y
 # For watchdog within qemu:
 CONFIG_I6300ESB_WDT=y
+
+# For bridge ethernet devices:
+CONFIG_BRIDGE=y
 `
 
 func downloadKernel() error {
