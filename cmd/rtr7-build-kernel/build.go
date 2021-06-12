@@ -143,6 +143,8 @@ CONFIG_I6300ESB_WDT=y
 
 # For bridge ethernet devices:
 CONFIG_BRIDGE=y
+
+CONFIG_EFIVAR_FS=y
 `
 
 func downloadKernel() error {
