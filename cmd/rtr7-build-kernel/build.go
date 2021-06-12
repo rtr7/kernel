@@ -128,6 +128,12 @@ CONFIG_NET_SCH_TBF=y
 # For measuring CPU temperature:
 CONFIG_SENSORS_K10TEMP=y
 
+# For measuring non-CPU temperature and fan speeds:
+CONFIG_SENSORS_NCT6683=y
+
+# For Corsair Commander Pro fan controller:
+CONFIG_SENSORS_CORSAIR_CPRO=y
+
 # For iproute2’s ss(8):
 CONFIG_INET_DIAG=y
 
