@@ -105,6 +105,9 @@ CONFIG_I40E=y
 # For apu2c4 ethernet ports
 CONFIG_IGB=y
 
+# For Intel I225 ethernet ports (ASRock B550 Taichi):
+CONFIG_IGC=y
+
 # For /proc/config.gz
 CONFIG_IKCONFIG=y
 CONFIG_IKCONFIG_PROC=y
