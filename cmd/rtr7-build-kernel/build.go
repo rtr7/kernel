@@ -161,6 +161,9 @@ CONFIG_CPU_FREQ_DEFAULT_GOV_POWERSAVE=y
 CONFIG_CPU_FREQ_GOV_POWERSAVE=y
 CONFIG_X86_POWERNOW_K8=y
 CONFIG_X86_AMD_FREQ_SENSITIVITY=y
+
+# Include hardware interrupt CPU usage in /proc/stat CPU time reporting:
+CONFIG_IRQ_TIME_ACCOUNTING=y
 `
 
 func downloadKernel() error {
