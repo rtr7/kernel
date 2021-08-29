@@ -164,6 +164,9 @@ CONFIG_X86_AMD_FREQ_SENSITIVITY=y
 
 # Include hardware interrupt CPU usage in /proc/stat CPU time reporting:
 CONFIG_IRQ_TIME_ACCOUNTING=y
+
+# For tun devices, see https://www.kernel.org/doc/Documentation/networking/tuntap.txt
+CONFIG_TUN=y
 `
 
 func downloadKernel() error {
