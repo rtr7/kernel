@@ -41,6 +41,24 @@ CONFIG_SQUASHFS_DECOMP_MULTI_PERCPU=y
 CONFIG_SQUASHFS_ZLIB=y
 CONFIG_SQUASHFS_FRAGMENT_CACHE_SIZE=3
 
+# For a console on HDMI:
+# # TODO: the simpledrm driver just does not work for me. the ASRock logo never disappears from HDMI
+# # [    0.364059] [drm] Initialized simpledrm 1.0.0 20200625 for simple-framebuffer.0 on minor 0
+# CONFIG_DRM_SIMPLEDRM=y
+# CONFIG_X86_SYSFB=y
+#
+# Whereas with (working) efifb, I see:
+# # [    0.460084] efifb: probing for efifb
+# # [    0.460096] efifb: framebuffer at 0xe9000000, using 3072k, total 3072k
+# # [    0.460099] efifb: mode is 1024x768x32, linelength=4096, pages=1
+# # [    0.460101] efifb: scrolling: redraw
+# # [    0.460103] efifb: Truecolor: size=8:8:8:8, shift=24:16:8:0
+CONFIG_DRM_SIMPLEDRM=n
+CONFIG_X86_SYSFB=n
+CONFIG_FB=y
+CONFIG_FB_EFI=y
+CONFIG_FB_SIMPLE=y
+
 # For FUSE (for cpu(1)):
 CONFIG_FUSE_FS=y
 
