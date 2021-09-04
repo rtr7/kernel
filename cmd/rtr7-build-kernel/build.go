@@ -22,6 +22,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
 )
 
@@ -242,7 +244,7 @@ func compile() error {
 		return fmt.Errorf("make olddefconfig: %v", err)
 	}
 
-	make := exec.Command("make", "bzImage", "-j8")
+	make := exec.Command("make", "bzImage", "-j"+strconv.Itoa(runtime.NumCPU()))
 	make.Env = append(os.Environ(),
 		"KBUILD_BUILD_USER=gokrazy",
 		"KBUILD_BUILD_HOST=docker",
