@@ -28,7 +28,7 @@ import (
 )
 
 // see https://www.kernel.org/releases.json
-var latest = "https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.16.1.tar.xz"
+var latest = "https://cdn.kernel.org/pub/linux/kernel/v5.x/linux-5.16.2.tar.xz"
 
 const configAddendum = `
 CONFIG_IPV6=y
