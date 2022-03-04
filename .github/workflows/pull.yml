@@ -28,6 +28,9 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update && sudo apt install qemu-system-x86
+        GOPROXY=direct go install github.com/gokrazy/autoupdate/cmd/...@latest
+        GOPROXY=direct go install github.com/gokrazy/tools/cmd/gokr-packer@latest
+        GOPROXY=direct go install github.com/gokrazy/bakery/cmd/qemubootery@latest
 
     # TODO: once https://github.com/actions/runner/issues/662 is fixed, we can
     # remove the gokr-has-label guards and terminate a CI run instead.
@@ -41,7 +44,6 @@ jobs:
         BOOTERY_URL: ${{ secrets.BOOTERY_URL }}
       if: ${{ env.GH_USER != 0 }}
       run: |
-        GOPROXY=direct go get -u github.com/gokrazy/autoupdate/cmd/... github.com/gokrazy/tools/cmd/gokr-packer github.com/gokrazy/bakery/cmd/qemubootery
         if gokr-has-label please-boot; then gokr-boot -require_label=please-boot -set_label=please-boot-qemu -bootery_url=$BOOTERY_URL -kernel_package=github.com/rtr7/kernel -firmware_package=github.com/rtr7/kernel -serial_console=ttyS0,115200; fi
 
     - name: Test Boot on qemu
@@ -54,7 +56,6 @@ jobs:
         BOOTERY_URL: ${{ secrets.BOOTERY_URL }}
       if: ${{ env.GH_USER != 0 }}
       run: |
-        GOPROXY=direct go get -u github.com/gokrazy/autoupdate/cmd/... github.com/gokrazy/tools/cmd/gokr-packer github.com/gokrazy/bakery/cmd/qemubootery
         if gokr-has-label please-boot-qemu; then qemubootery & GOARCH=amd64 gokr-boot -require_label=please-boot-qemu -set_label=please-merge -bootery_url=http://localhost:8037/testboot -kernel_package=github.com/rtr7/kernel -firmware_package=github.com/rtr7/kernel -serial_console=ttyS0,115200; fi
 
     - name: Build Linux kernel and amend Pull Request
@@ -67,7 +68,7 @@ jobs:
         BOOTERY_URL: ${{ secrets.BOOTERY_URL }}
       if: ${{ env.GH_USER != 0 }}
       run: |
-        if ! gokr-has-label please-merge && ! gokr-has-label please-boot && ! gokr-has-label please-boot-qemu; then go install ./cmd/rtr7-rebuild-kernel && rtr7-rebuild-kernel && GOPROXY=direct go get -u github.com/gokrazy/autoupdate/cmd/gokr-amend && gokr-amend -set_label=please-boot vmlinuz; fi
+        if ! gokr-has-label please-merge && ! gokr-has-label please-boot && ! gokr-has-label please-boot-qemu; then go install ./cmd/rtr7-rebuild-kernel && rtr7-rebuild-kernel && GOPROXY=direct go install github.com/gokrazy/autoupdate/cmd/gokr-amend@latest && gokr-amend -set_label=please-boot vmlinuz; fi
 
     - name: Merge if boot successful
       env:
