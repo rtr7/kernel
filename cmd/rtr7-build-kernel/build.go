@@ -92,6 +92,10 @@ CONFIG_NFT_CHAIN_NAT_IPV4=y
 CONFIG_NF_TABLES_IPV6=y
 CONFIG_NFT_CHAIN_ROUTE_IPV6=y
 CONFIG_NFT_OBJREF=y
+CONFIG_NFT_DUP_IPV4=y
+CONFIG_NFT_FIB_IPV4=y
+CONFIG_NFT_DUP_IPV6=y
+CONFIG_NFT_FIB_IPV6=y
 
 # Explicitly disable nftables helper modules to prevent NAT slipstreaming attacks:
 # https://samy.pl/slipstream/
