@@ -191,6 +191,18 @@ CONFIG_IRQ_TIME_ACCOUNTING=y
 
 # For tun devices, see https://www.kernel.org/doc/Documentation/networking/tuntap.txt
 CONFIG_TUN=y
+
+# For runc:
+CONFIG_BPF_SYSCALL=y
+CONFIG_CGROUP_FREEZER=y
+CONFIG_CGROUP_BPF=y
+CONFIG_SOCK_CGROUP_DATA=y
+CONFIG_NET_SOCK_MSG=y
+# For podman:
+CONFIG_OVERLAY_FS=y
+CONFIG_BRIDGE=y
+CONFIG_VETH=y
+CONFIG_NETFILTER_XT_MATCH_COMMENT=y
 `
 
 func downloadKernel() error {
