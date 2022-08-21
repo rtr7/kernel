@@ -126,6 +126,9 @@ CONFIG_NVME_TARGET_PASSTHRU=y
 # For https://www.fs.com/products/75602.html and https://www.fs.com/products/75603.html network cards:
 CONFIG_I40E=y
 
+# For Broadcom 57414 10/25 Gbit/s network card:
+CONFIG_BNXT=y
+
 # For apu2c4 ethernet ports
 CONFIG_IGB=y
 
