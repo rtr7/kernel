@@ -129,6 +129,12 @@ CONFIG_I40E=y
 # For Broadcom 57414 10/25 Gbit/s network card:
 CONFIG_BNXT=y
 
+# For Mellanox ConnectX-4 25 Gbit/s network cards:
+CONFIG_MLX5_EN=y
+CONFIG_MLX5_CORE=y
+CONFIG_MLX5_CORE_EN=y
+CONFIG_MLX5_INFINIBAND=n
+
 # For apu2c4 ethernet ports
 CONFIG_IGB=y
 
