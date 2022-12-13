@@ -28,7 +28,7 @@ import (
 )
 
 // see https://www.kernel.org/releases.json
-var latest = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.0.12.tar.xz"
+var latest = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.tar.xz"
 
 const configAddendum = `
 CONFIG_IPV6=y
@@ -225,6 +225,36 @@ CONFIG_CGROUP_PIDS=y
 CONFIG_TCP_CONG_BBR=y
 CONFIG_DEFAULT_BBR=y
 CONFIG_DEFAULT_TCP_CONG="bbr"
+
+# Linux 6.1:
+# In file included from <command-line>:0:0:
+# drivers/gpu/drm/i915/i915_sw_fence_work.c: In function 'dma_fence_work_init':
+# drivers/gpu/drm/i915/i915_sw_fence.h:57:20: error: the comparison will always evaluate as 'false' for the address of 'fence_notify' will never be NULL [-Werror=address]
+#   BUILD_BUG_ON((fn) == NULL);    \
+#                     ^
+# ././include/linux/compiler_types.h:337:9: note: in definition of macro '__compiletime_assert'
+#    if (!(condition))     \
+#          ^~~~~~~~~
+# ././include/linux/compiler_types.h:357:2: note: in expansion of macro '_compiletime_assert'
+#   _compiletime_assert(condition, msg, __compiletime_assert_, __COUNTER__)
+#   ^~~~~~~~~~~~~~~~~~~
+# ./include/linux/build_bug.h:39:37: note: in expansion of macro 'compiletime_assert'
+#  #define BUILD_BUG_ON_MSG(cond, msg) compiletime_assert(!(cond), msg)
+#                                      ^~~~~~~~~~~~~~~~~~
+# ./include/linux/build_bug.h:50:2: note: in expansion of macro 'BUILD_BUG_ON_MSG'
+#   BUILD_BUG_ON_MSG(condition, "BUILD_BUG_ON failed: " #condition)
+#   ^~~~~~~~~~~~~~~~
+# drivers/gpu/drm/i915/i915_sw_fence.h:57:2: note: in expansion of macro 'BUILD_BUG_ON'
+#   BUILD_BUG_ON((fn) == NULL);    \
+#   ^~~~~~~~~~~~
+# drivers/gpu/drm/i915/i915_sw_fence_work.c:89:2: note: in expansion of macro 'i915_sw_fence_init'
+#   i915_sw_fence_init(&f->chain, fence_notify);
+#   ^~~~~~~~~~~~~~~~~~
+# cc1: all warnings being treated as errors
+# make[5]: *** [drivers/gpu/drm/i915/i915_sw_fence_work.o] Error 1
+# make[4]: *** [drivers/gpu/drm/i915] Error 2
+# make[3]: *** [drivers/gpu/drm] Error 2
+CONFIG_WERROR=n
 `
 
 func downloadKernel() error {
