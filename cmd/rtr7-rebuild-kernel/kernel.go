@@ -118,7 +118,7 @@ func main() {
 	defer os.RemoveAll(tmp)
 
 	cmd := exec.Command("go", "install", "github.com/rtr7/kernel/cmd/rtr7-build-kernel")
-	cmd.Env = append(os.Environ(), "GOOS=linux", "GOBIN="+tmp)
+	cmd.Env = append(os.Environ(), "GOOS=linux", "GOBIN="+tmp, "CGO_ENABLED=0")
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
 		log.Fatalf("%v: %v", cmd.Args, err)
