@@ -183,6 +183,12 @@ CONFIG_VIRTIO_RING=y
 # For watchdog within qemu:
 CONFIG_I6300ESB_WDT=y
 
+# For running KVM-accelerated qemu VMs:
+CONFIG_KVM=y
+CONFIG_KVM_INTEL=y
+CONFIG_KVM_AMD=y
+CONFIG_KVM_AMD_SEV=y
+
 # For bridge ethernet devices:
 CONFIG_BRIDGE=y
 
