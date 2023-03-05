@@ -8,7 +8,7 @@ cat > ~/gokrazy/bakery/config.json <<EOT
 {
     "Hostname": "gokr-boot-will-inject-the-hostname",
     "Update": {
-        "HTTPPassword": "${GOKRAZY_BAKERY_PASSWORD}"
+        "HTTPPassword": "unused-no-rootfs-update"
     },
     "Packages": [
         "github.com/gokrazy/breakglass",
