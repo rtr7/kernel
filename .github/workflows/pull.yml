@@ -58,6 +58,7 @@ jobs:
         BOOTERY_URL: ${{ secrets.BOOTERY_URL }}
       if: ${{ env.GH_USER != 0 }}
       run: |
+        sed -i 's,"Hostname": "[^"]*","Hostname": "qemubakery",g' ~/gokrazy/bakery/config.json
         if gokr-has-label please-boot-qemu; then qemubootery & cd ~/gokrazy/bakery && GOARCH=amd64 gokr-boot -require_label=please-boot-qemu -set_label=please-merge -bootery_url=http://localhost:8037/testboot; fi
 
     - name: Build Linux kernel and amend Pull Request
