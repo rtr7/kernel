@@ -46,7 +46,7 @@ jobs:
       run: |
         .github/workflows/create-bakery.bash
         gok -i bakery add .
-        if gokr-has-label please-boot; then cd ~/gokrazy/bakery && gokr-boot -require_label=please-boot -set_label=please-boot-qemu -bootery_url=$BOOTERY_URL; fi
+        if gokr-has-label please-boot; then cd ~/gokrazy/bakery && GOARCH=amd64 gokr-boot -require_label=please-boot -set_label=please-boot-qemu -bootery_url=$BOOTERY_URL; fi
 
     - name: Test Boot on qemu
       env:
