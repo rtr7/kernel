@@ -28,7 +28,7 @@ import (
 )
 
 // see https://www.kernel.org/releases.json
-var latest = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.6.10.tar.xz"
+var latest = "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.7.tar.xz"
 
 const configAddendum = `
 CONFIG_IPV6=y
@@ -261,6 +261,10 @@ CONFIG_DEFAULT_TCP_CONG="bbr"
 # make[4]: *** [drivers/gpu/drm/i915] Error 2
 # make[3]: *** [drivers/gpu/drm] Error 2
 CONFIG_WERROR=n
+
+# Enable zstd compression to stay below 15 MB, which is the size of Extended Memory.
+# This is relevant to keep the kernel booting with the minimal MBR loader we use.
+CONFIG_KERNEL_ZSTD=y
 `
 
 func downloadKernel() error {
