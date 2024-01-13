@@ -28,9 +28,9 @@ import (
 )
 
 const dockerFileContents = `
-FROM debian:buster
+FROM debian:bookworm
 
-RUN apt-get update && apt-get install -y crossbuild-essential-arm64 bc libssl-dev bison flex libelf-dev ncurses-dev
+RUN apt-get update && apt-get install -y build-essential bc libssl-dev bison flex libelf-dev ncurses-dev ca-certificates zstd
 
 COPY rtr7-build-kernel /usr/bin/rtr7-build-kernel
 {{- range $idx, $path := .Patches }}
