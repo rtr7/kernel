@@ -237,3 +237,6 @@ CONFIG_WERROR=n
 # Enable zstd compression to stay below 15 MB, which is the size of Extended Memory.
 # This is relevant to keep the kernel booting with the minimal MBR loader we use.
 CONFIG_KERNEL_ZSTD=y
+
+# for easy sandboxing with go-landlock
+CONFIG_SECURITY_LANDLOCK=y
