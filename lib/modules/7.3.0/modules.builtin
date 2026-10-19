@@ -155,6 +155,7 @@ kernel/drivers/tty/serial/8250/8250_base.ko
 kernel/drivers/tty/serial/8250/8250_exar.ko
 kernel/drivers/tty/serial/8250/8250_lpss.ko
 kernel/drivers/tty/serial/8250/8250_mid.ko
+kernel/drivers/tty/serial/8250/8250_mxpcie.ko
 kernel/drivers/tty/serial/8250/8250_pci.ko
 kernel/drivers/tty/serial/8250/8250_pericom.ko
 kernel/drivers/char/virtio_console.ko
